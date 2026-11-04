@@ -1047,10 +1047,36 @@ button {
   font-weight: 700;
 }
 
+.pago__datos div {
+  align-items: center;
+}
+
 .pago__datos dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-weight: 800;
   text-align: right;
+}
+
+.pago__copiar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #3c7a62;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pago__copiar.copiado {
+  background: #3c7a62;
+  color: #fff;
 }
 
 .pago__ayuda {

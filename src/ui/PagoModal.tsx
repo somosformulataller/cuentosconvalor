@@ -50,10 +50,12 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
         </p>
 
         <dl class="pago__datos">
-          <div><dt>Banco</dt><dd>{s.datos.banco}</dd></div>
-          <div><dt>Teléfono</dt><dd>{s.datos.telefono}</dd></div>
-          <div><dt>Cédula</dt><dd>{s.datos.cedula}</dd></div>
-          {s.monto_bs !== null && <div><dt>Monto</dt><dd>{formatoBs(s.monto_bs)}</dd></div>}
+          <Dato nombre="Banco" valor={s.datos.banco} copiar={s.datos.banco} />
+          <Dato nombre="Teléfono" valor={s.datos.telefono} copiar={soloDigitos(s.datos.telefono)} />
+          <Dato nombre="Cédula" valor={s.datos.cedula} copiar={soloDigitos(s.datos.cedula)} />
+          {s.monto_bs !== null && (
+            <Dato nombre="Monto" valor={formatoBs(s.monto_bs)} copiar={s.monto_bs.toFixed(2).replace('.', ',')} />
+          )}
         </dl>
 
         <p class="pago__ayuda">Sube aquí la captura y tu cuenta se activará automáticamente.</p>
@@ -83,6 +85,45 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
           <a href="/cuentos" class="pago__salir">Ver mis cuentos</a>
         )}
       </div>
+    </div>
+  )
+}
+
+const soloDigitos = (t: string) => t.replace(/D/g, '')
+
+/** Un dato del Pago Móvil con su botón para copiarlo (el teléfono y la cédula
+ *  sin guiones ni letras; el monto sin «Bs.» ni puntos de miles: 8038,96). */
+function Dato({ nombre, valor, copiar }: { nombre: string; valor: string; copiar: string }) {
+  const [copiado, setCopiado] = useState(false)
+  async function alCopiar() {
+    try {
+      await navigator.clipboard.writeText(copiar)
+    } catch {
+      // Navegadores sin permiso de portapapeles
+      const t = document.createElement('textarea')
+      t.value = copiar
+      document.body.appendChild(t)
+      t.select()
+      document.execCommand('copy')
+      t.remove()
+    }
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 1500)
+  }
+  return (
+    <div>
+      <dt>{nombre}</dt>
+      <dd>
+        {valor}
+        <button type="button" class={`pago__copiar${copiado ? ' copiado' : ''}`} onClick={alCopiar} aria-label={`Copiar ${nombre.toLowerCase()}`}>
+          {copiado ? '✓' : (
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          )}
+        </button>
+      </dd>
     </div>
   )
 }
