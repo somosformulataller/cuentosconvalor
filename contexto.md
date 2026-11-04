@@ -40,8 +40,8 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   para mejorar sus productos, y la app manda datos de niños.
 - **Hosting:** Vercel (`formula-taller/cuentosconvalor`) para la PWA y la API
   (una función, hasta 300 s por respuesta); Supabase (`guluzhoumokowgepgarm`)
-  para la base Postgres y los audios. Ambos conectados a GitHub: push a `main`
-  despliega y aplica las migraciones.
+  para la base Postgres y los audios. Vercel despliega solo con cada push a `main`;
+  las migraciones se corren a mano en el SQL Editor de Supabase.
 - **Datos:** tablas usuarios, sesiones, cuentos, mensajes y capitulos, con RLS
   activado y sin políticas (solo entra el servidor). Contraseñas con scrypt y
   sesión propia por cookie HttpOnly (no Supabase Auth).
@@ -55,16 +55,20 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   capítulo 1 (23 s, 286 palabras, formato correcto). La voz de Gemini narró una
   prueba corta y la conversión a MP3 funciona (1,1 MB → 184 KB).
 - La app usa solo la clave secreta de Supabase (sin contraseña de la base).
-- **Falta probar contra la base:** falta `SUPABASE_SECRET_KEY`.
+- **En producción desde el 04-11:** https://cuentosconvalor.vercel.app, con las
+  variables cargadas en Vercel (las claves como Sensitive). Probado ahí: entrar,
+  chat en vivo, capítulo 1 en 17 s y su audio MP3.
+- **Migraciones:** la integración de Supabase con GitHub no quedó conectada; las
+  migraciones las corre la usuaria en el SQL Editor (las 2 de hoy ya corridas).
+- Usuario de prueba: `prueba@cuentosdevalor.app` (la clave la tiene la usuaria).
 - El `.env` local usa por ahora la clave de Gemini de Formula Taller (el gasto se
   carga a ese proyecto de Google).
 
 ## Pendientes y decisiones abiertas
 
-1. Poner `SUPABASE_SECRET_KEY` en el `.env`, confirmar que Supabase aplicó las
-   migraciones, probar un cuento completo con voz en local y subir.
-2. Cargar las variables en Vercel: `SUPABASE_URL`, `SUPABASE_SECRET_KEY` y
-   `GEMINI_API_KEY`.
+1. Al borrar un cuento, sus audios quedan en el bucket: falta borrarlos.
+2. El primer audio de un capítulo puede tardar ~40 s si se pide justo al
+   terminar de escribirlo (la narración en segundo plano aún no acabó).
 3. Crear una clave de Gemini propia para Cuentos de valor, de pago.
 4. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
 5. Dominio propio.

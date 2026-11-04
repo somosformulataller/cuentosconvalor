@@ -34,8 +34,8 @@ npm run dev             # http://127.0.0.1:5230
   push a `main`: construye la PWA (`dist/`) y la API corre como una función
   (`api/index.mjs`, ver `vercel.json`). Las variables del `.env` van en
   Settings → Environment Variables.
-- **Supabase** aplica solo las migraciones de `supabase/migrations/` al subir
-  a `main`.
+- **Supabase:** las migraciones de `supabase/migrations/` se corren a mano en el
+  SQL Editor, en orden; la integración con GitHub no está conectada.
 - También se puede correr en un servidor propio: `npm run build` y `npm start`
   (puerto `PORT`, 5230 por defecto).
 
