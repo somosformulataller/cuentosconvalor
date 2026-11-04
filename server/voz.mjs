@@ -67,7 +67,8 @@ async function conseguir(cuentoId, cap, ruta) {
 }
 
 async function preparar(cuentoId, cap, ruta) {
-  const texto = `Capítulo ${cap.numero}. ${cap.titulo}.\n\n${cap.texto}`
+  // Solo el cuento: sin «Capítulo N» ni el título, para que suene seguido
+  const texto = cap.texto
   const mp3 = proveedor() === 'gemini' ? aMp3(await conGemini(texto)) : await conOpenAI(texto)
   await q(db().storage.from(BUCKET).upload(ruta, mp3, { contentType: 'audio/mpeg', upsert: true, cacheControl: '31536000' }))
   // Solo si el texto no cambió mientras se narraba

@@ -387,6 +387,26 @@ button {
   background: var(--lavanda);
 }
 
+/* La barra del chat con sus pasos, fija arriba */
+.cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: rgb(251 246 239 / 0.88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--linea);
+}
+
+.cabecera .barra {
+  position: static;
+  background: none;
+  backdrop-filter: none;
+}
+
+.cabecera .pasos {
+  padding-bottom: 10px;
+}
+
 /* ── los pasos ─────────────────────────────────────────────────────────── */
 
 .pasos {

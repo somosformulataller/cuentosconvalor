@@ -118,6 +118,8 @@ export function Chat({ id }: { id: number }) {
 
   return (
     <>
+      {/* La barra y los pasos quedan fijos arriba al bajar por el chat */}
+      <div class="cabecera">
       <header class="barra">
         <a href="/cuentos" class="barra__titulo" aria-label="Mis cuentos">
           <Luna size={38} />
@@ -140,6 +142,7 @@ export function Chat({ id }: { id: number }) {
           </span>
         ))}
       </nav>
+      </div>
 
       <main class="chat">
         <ol class="chat__lista">

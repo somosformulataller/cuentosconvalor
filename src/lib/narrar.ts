@@ -60,7 +60,7 @@ function vozEnEspanol(): SpeechSynthesisVoice | undefined {
 
 function hablar(cap: Capitulo, mio: number) {
   if (typeof speechSynthesis === 'undefined') return poner({ fase: 'quieto' })
-  const partes = [`Capítulo ${cap.numero}. ${cap.titulo}.`, ...cap.texto.split(/\n\s*\n/)].filter((p) => p.trim())
+  const partes = cap.texto.split(/\n\s*\n/).filter((p) => p.trim())
   const v = vozEnEspanol()
   partes.forEach((p, i) => {
     const u = new SpeechSynthesisUtterance(p)
