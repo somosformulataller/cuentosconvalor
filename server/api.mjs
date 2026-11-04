@@ -5,7 +5,7 @@ import { waitUntil } from '@vercel/functions'
 import { db, q } from './db.mjs'
 import { abrirSesion, cerrarSesion, claveCorrecta, hashClave, usuarioDe } from './auth.mjs'
 import { errorAmable, escribir, hayIA } from './luna.mjs'
-import { audioDe, hayVoz } from './voz.mjs'
+import { audioDe, borrarAudios, hayVoz } from './voz.mjs'
 import { leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
 
 const json = (res, status, data) => {
@@ -137,7 +137,9 @@ const rutas = [
     'DELETE',
     /^\/api\/cuentos\/(\d+)$/,
     async (req, res, u, [id]) => {
-      await q(db().from('cuentos').delete().eq('id', Number(id)).eq('usuario_id', u.id))
+      const borrados = await q(db().from('cuentos').delete().eq('id', Number(id)).eq('usuario_id', u.id).select('id'))
+      // Sus audios no se borran solos con la fila: se quitan del bucket
+      if (borrados.length) await borrarAudios(borrados[0].id).catch((err) => console.error('[voz]', err))
       json(res, 200, { ok: true })
     },
   ],

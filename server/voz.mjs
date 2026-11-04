@@ -28,11 +28,42 @@ export async function audioDe(cuentoId, cap) {
   if (cap.audio && cap.audio_version === cap.version) return firmar(cap.audio)
   const ruta = `${cuentoId}/${cap.numero}-v${cap.version}.mp3`
   if (!enCurso.has(ruta)) {
-    const p = preparar(cuentoId, cap, ruta).finally(() => enCurso.delete(ruta))
+    const p = conseguir(cuentoId, cap, ruta).finally(() => enCurso.delete(ruta))
     enCurso.set(ruta, p)
   }
-  await enCurso.get(ruta)
-  return firmar(ruta)
+  return firmar(await enCurso.get(ruta))
+}
+
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Narra el capítulo si nadie lo está haciendo (reserva en la base, migración
+ * 20261104020000); si otro servidor ya lo narra, espera su audio. Devuelve la
+ * ruta en el bucket.
+ */
+async function conseguir(cuentoId, cap, ruta) {
+  const clave = { p_cuento: cuentoId, p_numero: cap.numero, p_version: cap.version }
+  const limite = Date.now() + 150_000
+  for (;;) {
+    if (await q(db().rpc('reservar_audio', clave))) {
+      try {
+        await preparar(cuentoId, cap, ruta)
+      } catch (err) {
+        // Se suelta la reserva para que el siguiente intento no espere en vano
+        await db().from('capitulos').update({ audio_reserva: null })
+          .match({ cuento_id: cuentoId, numero: cap.numero, audio_reserva_version: cap.version })
+        throw err
+      }
+      return ruta
+    }
+    await pausa(2000)
+    const fila = await q(
+      db().from('capitulos').select('audio, audio_version, version').match({ cuento_id: cuentoId, numero: cap.numero }).maybeSingle(),
+    )
+    if (!fila || fila.version !== cap.version) throw new Error('El capítulo cambió mientras se narraba')
+    if (fila.audio && fila.audio_version === cap.version) return fila.audio
+    if (Date.now() > limite) throw new Error('La narración tarda demasiado')
+  }
 }
 
 async function preparar(cuentoId, cap, ruta) {
@@ -46,6 +77,14 @@ async function preparar(cuentoId, cap, ruta) {
       .update({ audio: ruta, audio_version: cap.version })
       .match({ cuento_id: cuentoId, numero: cap.numero, version: cap.version }),
   )
+  // El audio de la versión anterior (el capítulo se reescribió) ya no sirve
+  if (cap.audio && cap.audio !== ruta) await db().storage.from(BUCKET).remove([cap.audio])
+}
+
+/** Borra todos los audios de un cuento (al borrar el cuento). */
+export async function borrarAudios(cuentoId) {
+  const archivos = await q(db().storage.from(BUCKET).list(String(cuentoId), { limit: 100 }))
+  if (archivos.length) await q(db().storage.from(BUCKET).remove(archivos.map((a) => `${cuentoId}/${a.name}`)))
 }
 
 async function firmar(ruta) {
