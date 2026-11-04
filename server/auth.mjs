@@ -37,7 +37,7 @@ export async function usuarioDe(req) {
   const fila = await q(
     db()
       .from('sesiones')
-      .select('usuarios(id, nombre, email)')
+      .select('usuarios(id, nombre, email, es_admin, pagado_hasta)')
       .eq('token', token)
       .gt('vence', new Date().toISOString())
       .maybeSingle(),

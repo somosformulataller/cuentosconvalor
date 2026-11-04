@@ -13,7 +13,7 @@ export function Libro({ id }: { id: number }) {
   const estado = voz.use()
 
   useEffect(() => {
-    api.cuento(id).then(setDatos).catch((e) => setError((e as Error).message))
+    api.cuento(id, 'libro').then(setDatos).catch((e) => setError((e as Error).message))
     return () => detener()
   }, [id])
 

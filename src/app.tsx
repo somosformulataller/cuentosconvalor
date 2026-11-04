@@ -9,6 +9,7 @@ import { Registro } from './screens/Registro'
 import { Chat } from './screens/Chat'
 import { Libro } from './screens/Libro'
 import { Cuentos } from './screens/Cuentos'
+import { Admin } from './screens/Admin'
 
 export function App() {
   const ruta = useRuta()
@@ -37,6 +38,7 @@ export function App() {
   const chat = ruta.match(/^\/cuento\/(\d+)$/)
   if (chat) return <Chat key={chat[1]} id={Number(chat[1])} />
   if (ruta === '/cuentos') return <Cuentos />
+  if (ruta === '/admin' && usuario.es_admin) return <Admin />
   return <Inicio usuario={usuario} />
 }
 

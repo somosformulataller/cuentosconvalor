@@ -6,24 +6,15 @@ import { db, q } from './db.mjs'
 import { abrirSesion, cerrarSesion, claveCorrecta, hashClave, usuarioDe } from './auth.mjs'
 import { errorAmable, escribir, hayIA } from './luna.mjs'
 import { audioDe, borrarAudios, hayVoz } from './voz.mjs'
+import { evento, visita } from './eventos.mjs'
+import { cuerpo, json } from './http.mjs'
+import { rutasAdmin } from './rutas-admin.mjs'
+import { rutasPagos } from './rutas-pagos.mjs'
+import { activo } from './suscripcion.mjs'
 import { leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
 
-const json = (res, status, data) => {
-  res.statusCode = status
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
-  res.end(JSON.stringify(data))
-}
-
-async function cuerpo(req) {
-  // Vercel ya lo trae leído en req.body
-  if (req.body !== undefined) return typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body ?? {})
-  let raw = ''
-  for await (const parte of req) {
-    raw += parte
-    if (raw.length > 100_000) throw new Error('muy_grande')
-  }
-  return raw ? JSON.parse(raw) : {}
-}
+/** Sin mensualidad al día no se crean ni se escriben cuentos (leer y escuchar, sí). */
+const SIN_PAGO = { error: 'Activa tu cuenta con el pago de la mensualidad para seguir creando cuentos.', pago: true }
 
 const saludo = (nombre) =>
   `<mensaje>¡Hola, ${nombre}! 🌙 Soy Luna, y vamos a crear juntos un cuento con valor, hecho a la medida de tu hijo o hija.\n\nPara empezar, cuéntame de tu hijo: ¿cómo se llama, cuántos años tiene y qué es lo que más le gusta?</mensaje>`
@@ -39,7 +30,14 @@ const capitulosDe = (id) =>
 const rutas = [
   ['GET', /^\/api\/config$/, (req, res) => json(res, 200, { ia: hayIA(), voz: hayVoz(), capitulos: TOTAL_CAPITULOS })],
 
-  ['GET', /^\/api\/yo$/, (req, res, u) => json(res, 200, { usuario: u })],
+  [
+    'GET',
+    /^\/api\/yo$/,
+    (req, res, u) => {
+      if (u) waitUntil(visita(u.id))
+      json(res, 200, { usuario: u })
+    },
+  ],
 
   [
     'POST',
@@ -53,12 +51,13 @@ const rutas = [
       const { data: u, error } = await db()
         .from('usuarios')
         .insert({ nombre: nombre.trim(), email: correo, clave: hashClave(clave) })
-        .select('id, nombre, email')
+        .select('id, nombre, email, es_admin, pagado_hasta')
         .single()
       // 23505: el correo ya existe (índice único)
       if (error?.code === '23505') return json(res, 409, { error: 'Ya hay una cuenta con ese correo. Inicia sesión.' })
       if (error) throw new Error(`supabase: ${error.message}`)
       await abrirSesion(res, u.id)
+      await evento(u.id, 'registro')
       json(res, 200, { usuario: u })
     },
   ],
@@ -71,14 +70,16 @@ const rutas = [
       const u = await q(db().from('usuarios').select('*').eq('email', email.trim().toLowerCase()).maybeSingle())
       if (!u || !claveCorrecta(clave, u.clave)) return json(res, 401, { error: 'El correo o la contraseña no coinciden.' })
       await abrirSesion(res, u.id)
-      json(res, 200, { usuario: { id: u.id, nombre: u.nombre, email: u.email } })
+      await evento(u.id, 'entrar')
+      json(res, 200, { usuario: { id: u.id, nombre: u.nombre, email: u.email, es_admin: u.es_admin, pagado_hasta: u.pagado_hasta } })
     },
   ],
 
   [
     'POST',
     /^\/api\/salir$/,
-    async (req, res) => {
+    async (req, res, u) => {
+      if (u) await evento(u.id, 'salir')
       await cerrarSesion(req, res)
       json(res, 200, { ok: true })
     },
@@ -118,6 +119,7 @@ const rutas = [
       }
       const nuevo = await q(db().from('cuentos').insert({ usuario_id: u.id }).select('id').single())
       await q(db().from('mensajes').insert({ cuento_id: nuevo.id, rol: 'assistant', texto: saludo(u.nombre.split(' ')[0]) }))
+      await evento(u.id, 'cuento_nuevo', { cuento: nuevo.id })
       json(res, 200, { id: nuevo.id })
     },
   ],
@@ -129,6 +131,8 @@ const rutas = [
       const cuento = await cuentoDe(u, id)
       if (!cuento) return json(res, 404, { error: 'No encontramos ese cuento.' })
       const mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
+      const vista = new URL(req.url, 'http://x').searchParams.get('vista')
+      waitUntil(evento(u.id, vista === 'libro' ? 'abrio_libro' : 'abrio_chat', { cuento: cuento.id }))
       json(res, 200, { cuento, mensajes, capitulos: await capitulosDe(cuento.id) })
     },
   ],
@@ -139,7 +143,10 @@ const rutas = [
     async (req, res, u, [id]) => {
       const borrados = await q(db().from('cuentos').delete().eq('id', Number(id)).eq('usuario_id', u.id).select('id'))
       // Sus audios no se borran solos con la fila: se quitan del bucket
-      if (borrados.length) await borrarAudios(borrados[0].id).catch((err) => console.error('[voz]', err))
+      if (borrados.length) {
+        await borrarAudios(borrados[0].id).catch((err) => console.error('[voz]', err))
+        await evento(u.id, 'borro_cuento', { cuento: borrados[0].id })
+      }
       json(res, 200, { ok: true })
     },
   ],
@@ -156,6 +163,7 @@ const rutas = [
         : null
       if (!cap) return json(res, 404, { error: 'No hay capítulo.' })
       if (!hayVoz()) return json(res, 404, { error: 'sin_voz' })
+      waitUntil(evento(u.id, 'escucho', { cuento: cuento.id, capitulo: cap.numero }))
       try {
         // El audio vive en Supabase Storage: se manda al enlace firmado
         res.statusCode = 302
@@ -172,6 +180,7 @@ const rutas = [
 
 /** La mamá o el papá responde: Luna escribe en vivo (NDJSON) y se guarda. */
 async function conversar(req, res, u, [id]) {
+  if (!activo(u)) return json(res, 402, SIN_PAGO)
   const cuento = await cuentoDe(u, id)
   if (!cuento) return json(res, 404, { error: 'No encontramos ese cuento.' })
   const { texto = '' } = await cuerpo(req)
@@ -182,6 +191,7 @@ async function conversar(req, res, u, [id]) {
   const historia = await q(db().from('mensajes').select('rol, texto').eq('cuento_id', cuento.id).order('id'))
   const respuestas = historia.filter((m) => m.rol === 'user').length
   const capitulos = (await capitulosDe(cuento.id)).length
+  waitUntil(evento(u.id, 'mensaje', { cuento: cuento.id, respuesta: respuestas }))
 
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
@@ -192,7 +202,8 @@ async function conversar(req, res, u, [id]) {
 
   try {
     const raw = await escribir({ historia, respuestas, capitulos, alTexto: (t) => enviar({ type: 'text', text: t }), signal: corte.signal })
-    await guardar(cuento, raw)
+    const cap = await guardar(cuento, raw)
+    if (cap) await evento(u.id, cap.version > 1 ? 'capitulo_reescrito' : 'capitulo', { cuento: cuento.id, capitulo: cap.numero })
     const actualizado = await q(db().from('cuentos').select('*').eq('id', cuento.id).single())
     enviar({ type: 'done', cuento: actualizado, capitulos: await capitulosDe(cuento.id) })
   } catch (err) {
@@ -204,8 +215,10 @@ async function conversar(req, res, u, [id]) {
   res.end()
 }
 
+/** Guarda la respuesta de Luna; devuelve el capítulo si escribió uno. */
 async function guardar(cuento, raw) {
   const r = leerRespuesta(raw)
+  let cap = null
   await q(db().from('mensajes').insert({ cuento_id: cuento.id, rol: 'assistant', texto: raw }))
   const cambios = { actualizado: new Date().toISOString() }
   if (r.titulo) cambios.titulo = r.titulo
@@ -213,7 +226,7 @@ async function guardar(cuento, raw) {
   if (r.valores) cambios.valores = r.valores
   const c = r.capitulo
   if (c && c.texto && c.numero >= 1 && c.numero <= TOTAL_CAPITULOS) {
-    const cap = await q(
+    cap = await q(
       db()
         .rpc('guardar_capitulo', { p_cuento: cuento.id, p_numero: c.numero, p_titulo: c.titulo || `Capítulo ${c.numero}`, p_texto: c.texto })
         .single(),
@@ -225,23 +238,26 @@ async function guardar(cuento, raw) {
     if (hayVoz()) waitUntil(audioDe(cuento.id, cap).catch((err) => console.error('[voz]', err)))
   }
   await q(db().from('cuentos').update(cambios).eq('id', cuento.id))
+  return cap
 }
 
 export async function api(req, res, next) {
   const url = new URL(req.url, 'http://x')
   if (!url.pathname.startsWith('/api/')) return next?.()
   try {
-    for (const [metodo, patron, manejar] of rutas) {
+    for (const [metodo, patron, manejar] of [...rutas, ...rutasPagos, ...rutasAdmin]) {
       const m = url.pathname.match(patron)
       if (!m || req.method !== metodo) continue
-      const publica = /^\/api\/(config|yo|registro|entrar|salir)$/.test(url.pathname)
-      const u = url.pathname === '/api/config' ? null : await usuarioDe(req)
+      // El cron trae su propia clave (CRON_SECRET)
+      const publica = /^\/api\/(config|yo|registro|entrar|salir|cron\/pagos)$/.test(url.pathname)
+      const u = /^\/api\/(config|cron\/pagos)$/.test(url.pathname) ? null : await usuarioDe(req)
       if (!publica && !u) return json(res, 401, { error: 'Inicia sesión para seguir.' })
       return await manejar(req, res, u, m.slice(1))
     }
     json(res, 404, { error: 'No existe.' })
   } catch (err) {
     console.error('[api]', err)
+    if (err?.status === 413 && !res.headersSent) return json(res, 413, { error: 'La imagen es muy pesada. Prueba con otra captura.' })
     if (!res.headersSent) json(res, 500, { error: 'Algo falló. Prueba otra vez.' })
     else res.end()
   }

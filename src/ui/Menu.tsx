@@ -8,6 +8,7 @@ import { DescargarApp } from './DescargarApp'
 export function Menu({ alNuevo }: { alNuevo?: () => void }) {
   const [abierto, setAbierto] = useState(false)
   const caja = useRef<HTMLDivElement>(null)
+  const usuario = sesion.use()
   useEffect(() => {
     if (!abierto) return
     const fuera = (e: MouseEvent) => !caja.current?.contains(e.target as Node) && setAbierto(false)
@@ -28,6 +29,9 @@ export function Menu({ alNuevo }: { alNuevo?: () => void }) {
       {abierto && (
         <div class="menu__lista" role="menu">
           <a href="/cuentos" role="menuitem" onClick={() => setAbierto(false)}>📚 Mis cuentos</a>
+          {usuario?.es_admin && (
+            <a href="/admin" role="menuitem" onClick={() => setAbierto(false)}>🛠️ Superadmin</a>
+          )}
           <DescargarApp compacto />
           <button
             type="button"

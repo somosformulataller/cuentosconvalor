@@ -6,6 +6,8 @@ import { sesion } from '../lib/sesion'
 import { Cargando } from '../ui/Cargando'
 import { Logo } from '../ui/Logo'
 import { Menu } from '../ui/Menu'
+import { AvisoPago } from '../ui/PagoModal'
+import { cargarSuscripcion, suscripcion } from '../lib/suscripcion'
 
 const COLORES = ['lavanda', 'durazno', 'menta', 'celeste']
 
@@ -13,9 +15,11 @@ export function Cuentos() {
   const usuario = sesion.use()
   const [cuentos, setCuentos] = useState<Cuento[] | null>(null)
   const [error, setError] = useState('')
+  const s = suscripcion.use()
 
   useEffect(() => {
     api.cuentos().then((d) => setCuentos(d.cuentos)).catch((e) => setError((e as Error).message))
+    cargarSuscripcion()
   }, [])
 
   async function nuevo() {
@@ -37,6 +41,7 @@ export function Cuentos() {
         </span>
         <Menu />
       </header>
+      {s && <AvisoPago s={s} />}
       <main class="estante">
         <button type="button" class="estante__nuevo" onClick={nuevo}>
           <span aria-hidden="true">✨</span>

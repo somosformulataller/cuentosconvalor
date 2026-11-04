@@ -944,3 +944,366 @@ button {
     transition: none !important;
   }
 }
+
+/* ── Ventana de pago y avisos de vencimiento ─────────────────────────────── */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  overflow-y: auto;
+  background: rgb(74 67 99 / 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.modal__caja {
+  position: relative;
+  width: min(100%, 440px);
+  padding: 28px 22px 24px;
+  background: var(--blanco);
+  border-radius: 28px;
+  box-shadow: 0 18px 50px rgb(74 67 99 / 0.25);
+}
+
+.modal__cerrar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--lavanda);
+  color: var(--lavanda-fuerte);
+  font-weight: 800;
+}
+
+.pago {
+  display: grid;
+  gap: 14px;
+  text-align: center;
+}
+
+.pago h2 {
+  margin: 0;
+  font-family: var(--titulos);
+  font-size: 1.5rem;
+}
+
+.pago__icono {
+  font-size: 2.4rem;
+}
+
+.pago__monto {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pago__monto strong {
+  color: var(--lavanda-fuerte);
+}
+
+.pago__datos {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--menta);
+  text-align: left;
+}
+
+.pago__datos div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pago__datos dt {
+  color: var(--tinta-2);
+  font-weight: 700;
+}
+
+.pago__datos dd {
+  margin: 0;
+  font-weight: 800;
+  text-align: right;
+}
+
+.pago__ayuda {
+  margin: 0;
+  color: var(--tinta-2);
+}
+
+.pago__archivo {
+  display: grid;
+  place-items: center;
+  min-height: 110px;
+  padding: 12px;
+  border: 2px dashed var(--lavanda-media);
+  border-radius: 18px;
+  background: var(--lavanda);
+  color: var(--lavanda-fuerte);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pago__archivo input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.pago__archivo img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 12px;
+}
+
+.pago__salir {
+  font-weight: 700;
+}
+
+.franja-pago {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 16px 0;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--amarillo);
+}
+
+.boton--peligro {
+  background: var(--peligro-suave);
+  color: var(--peligro);
+}
+
+/* ── Superadmin ──────────────────────────────────────────────────────────── */
+
+.admin__pestanas {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  overflow-x: auto;
+}
+
+.admin__pestanas button {
+  flex: none;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--blanco);
+  color: var(--tinta-2);
+  font-weight: 800;
+}
+
+.admin__pestanas button.activa {
+  background: var(--lavanda-fuerte);
+  color: #fff;
+}
+
+.admin {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 8px 16px 40px;
+}
+
+.admin h3 {
+  margin: 8px 0 0;
+  font-family: var(--titulos);
+}
+
+.admin__cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.admin__cifra {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--blanco);
+  box-shadow: var(--sombra);
+}
+
+.admin__cifra strong {
+  font-family: var(--titulos);
+  font-size: 1.8rem;
+  color: var(--lavanda-fuerte);
+}
+
+.admin__cifra span {
+  color: var(--tinta-2);
+  font-size: 0.9rem;
+}
+
+.admin__cifra.alerta {
+  background: var(--peligro-suave);
+}
+
+.admin__cifra.alerta strong {
+  color: var(--peligro);
+}
+
+.admin__salud ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.admin__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin__lista {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin__pago {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+
+.admin__captura {
+  flex: none;
+}
+
+.admin__captura img {
+  width: 110px;
+  max-height: 190px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.admin__pago-datos {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin__pago-datos p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.admin__pago-datos small,
+.admin__usuario small {
+  color: var(--tinta-2);
+}
+
+.admin__motivo {
+  color: var(--peligro);
+  font-weight: 800;
+}
+
+.admin__nota,
+.admin__estado {
+  color: var(--tinta-2);
+}
+
+.admin__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.admin__usuario {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.admin__usuario > span {
+  display: grid;
+}
+
+.admin__usuario em {
+  color: var(--lavanda-fuerte);
+  font-size: 0.8rem;
+}
+
+.admin__usuario-datos {
+  text-align: right;
+}
+
+.admin__usuario-datos .ok {
+  color: #3c7a62;
+  font-weight: 800;
+}
+
+.admin__usuario-datos .no {
+  color: var(--peligro);
+  font-weight: 800;
+}
+
+.admin__simple {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.admin__actividad {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin__actividad li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--blanco);
+}
+
+.admin__actividad time {
+  min-width: 120px;
+  color: var(--tinta-2);
+  font-size: 0.9rem;
+}
+
+.admin__actividad small {
+  width: 100%;
+  color: var(--tinta-2);
+}
+
+.admin__vacio {
+  color: var(--tinta-2);
+}
+
+@media (max-width: 560px) {
+  .admin__pago {
+    flex-direction: column;
+  }
+  .admin__captura img {
+    width: 100%;
+  }
+  .admin__usuario-datos {
+    text-align: left;
+  }
+}

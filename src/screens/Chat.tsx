@@ -7,6 +7,8 @@ import { narrar, pausarOSeguir, voz } from '../lib/narrar'
 import { Cargando } from '../ui/Cargando'
 import { Luna } from '../ui/Luna'
 import { Menu } from '../ui/Menu'
+import { AvisoPago, PagoModal } from '../ui/PagoModal'
+import { cargarSuscripcion, suscripcion } from '../lib/suscripcion'
 
 /* ───────────────────────────────────────────────────────────────────────────
    El chat con Luna. Ella pregunta, en orden: cuéntame de tu hijo, qué valores
@@ -34,6 +36,11 @@ export function Chat({ id }: { id: number }) {
   const [escribiendo, setEscribiendo] = useState<string | null>(null) // lo que va llegando de Luna
   const [borrador, setBorrador] = useState('')
   const entrada = useRef<HTMLTextAreaElement>(null)
+  const s = suscripcion.use()
+
+  useEffect(() => {
+    cargarSuscripcion()
+  }, [])
 
   useEffect(() => {
     api
@@ -80,6 +87,8 @@ export function Chat({ id }: { id: number }) {
       setMensajes((l) => l.filter((m) => m.id !== mio.id))
       setBorrador(texto)
       setError(fallo)
+      // Si fue por la mensualidad, al refrescar sale la ventana de pago
+      cargarSuscripcion()
     } else {
       setMensajes((l) => [...l, { id: -Date.now() - 1, rol: 'assistant', texto: raw }])
     }
@@ -119,6 +128,9 @@ export function Chat({ id }: { id: number }) {
         </a>
         <Menu alNuevo={nuevo} />
       </header>
+
+      {s && <AvisoPago s={s} />}
+      {s && !s.activo && <PagoModal s={s} />}
 
       <nav class="pasos" aria-label="Cómo va tu cuento">
         {PASOS.map((p, i) => (
