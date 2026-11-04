@@ -1,6 +1,6 @@
-// Modo demostración: sin ANTHROPIC_API_KEY, Luna responde con un cuento de
+// Modo demostración: sin GEMINI_API_KEY, Luna responde con un cuento de
 // ejemplo armado con lo que escribió la mamá o el papá. Sirve para ver y
-// probar la app; el cuento de verdad lo escribe Claude.
+// probar la app; el cuento de verdad lo escribe Gemini.
 import { TOTAL_CAPITULOS } from '../shared/formato.js'
 
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms))

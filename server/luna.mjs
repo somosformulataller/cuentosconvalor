@@ -1,14 +1,11 @@
-// Luna, la cuentacuentos: Claude escribe sus respuestas. Sin ANTHROPIC_API_KEY
-// responde el modo demostración (demo.mjs) para poder ver la app igual.
-import Anthropic from '@anthropic-ai/sdk'
+// Luna, la cuentacuentos: Gemini escribe sus respuestas (Interactions API, sin
+// guardar nada en Google: store false). Sin GEMINI_API_KEY responde el modo
+// demostración (demo.mjs) para poder ver la app igual.
 import { TOTAL_CAPITULOS } from '../shared/formato.js'
 import { respuestaDemo } from './demo.mjs'
 
-export const MODELO = process.env.CLAUDE_MODEL || 'claude-opus-5-5'
-export const hayClaude = () => !!process.env.ANTHROPIC_API_KEY
-
-let cliente = null
-const claude = () => (cliente ??= new Anthropic())
+export const MODELO = () => process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+export const hayIA = () => !!process.env.GEMINI_API_KEY
 
 // Fijo a propósito (sin fechas ni nombres): así se puede reutilizar en caché.
 const SISTEMA = `Eres Luna, una cuentacuentos cálida y alegre dentro de la app "Cuentos de valor". Hablas con una mamá o un papá para crear juntos un cuento infantil que refuerce valores en su hijo o hija.
@@ -70,43 +67,72 @@ const ABRE = '(La mamá o el papá abrió la app para crear un cuento nuevo.)'
  */
 export async function escribir({ historia, respuestas, capitulos, alTexto, signal }) {
   const nota = etapa(respuestas, capitulos)
-  if (!hayClaude()) return respuestaDemo({ historia, respuestas, capitulos, alTexto, signal })
+  if (!hayIA()) return respuestaDemo({ historia, respuestas, capitulos, alTexto, signal })
 
   const escribeCapitulo = respuestas >= 3
-  const stream = claude().beta.messages.stream(
-    {
-      model: MODELO,
-      max_tokens: 16000,
-      // Las preguntas son cortas; los capítulos piensan un poco más.
-      output_config: { effort: escribeCapitulo ? 'medium' : 'low' },
-      // Si Claude declina por error, el servidor reintenta con el modelo que
-      // recomienda Anthropic en vez de dejar el chat sin respuesta.
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      cache_control: { type: 'ephemeral' },
-      system: SISTEMA,
-      messages: [
-        { role: 'user', content: ABRE },
-        ...historia.map((m) => ({ role: m.rol, content: m.texto })),
-        { role: 'system', content: nota },
-      ],
-    },
-    { signal },
-  )
-  stream.on('text', (t) => alTexto(t))
-  const final = await stream.finalMessage()
-  if (final.stop_reason === 'refusal') throw new Error('rechazo')
-  return final.content
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
+  let res
+  try {
+    res = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse', {
+      method: 'POST',
+      headers: {
+        'x-goog-api-key': process.env.GEMINI_API_KEY,
+        'Content-Type': 'application/json',
+        'Api-Revision': '2026-05-20',
+      },
+      body: JSON.stringify({
+        model: MODELO(),
+        stream: true,
+        // La conversación la guarda la app; Google no se queda con nada
+        store: false,
+        // La nota de la etapa va con las instrucciones fijas
+        system_instruction: `${SISTEMA}\n\nNota del sistema para este turno: ${nota}`,
+        // Las preguntas son cortas; los capítulos piensan un poco más.
+        generation_config: { thinking_level: escribeCapitulo ? 'medium' : 'low' },
+        input: [
+          { type: 'user_input', content: ABRE },
+          ...historia.map((m) =>
+            m.rol === 'user'
+              ? { type: 'user_input', content: m.texto }
+              : { type: 'model_output', content: [{ type: 'text', text: m.texto }] },
+          ),
+        ],
+      }),
+      signal,
+    })
+  } catch (err) {
+    if (signal?.aborted) throw err
+    throw Object.assign(new Error('conexion'), { cause: err })
+  }
+  if (!res.ok) throw Object.assign(new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 300)}`), { status: res.status })
+
+  // Eventos SSE: el texto llega en step.delta con delta.type «text»
+  let texto = ''
+  let pendiente = ''
+  const decoder = new TextDecoder()
+  for await (const parte of res.body) {
+    pendiente += decoder.decode(parte, { stream: true })
+    const lineas = pendiente.split('\n')
+    pendiente = lineas.pop()
+    for (const linea of lineas) {
+      if (!linea.startsWith('data: ') || linea === 'data: [DONE]') continue
+      const ev = JSON.parse(linea.slice(6))
+      if (ev.event_type === 'step.delta' && ev.delta?.type === 'text') {
+        texto += ev.delta.text
+        alTexto(ev.delta.text)
+      } else if (ev.event_type === 'error' || ev.error) {
+        throw new Error(`gemini: ${JSON.stringify(ev.error ?? ev).slice(0, 300)}`)
+      }
+    }
+  }
+  if (!texto.trim()) throw new Error('rechazo')
+  return texto
 }
 
 /** Lo que el usuario ve si algo falla, sin detalles técnicos. */
 export function errorAmable(err) {
-  if (err instanceof Anthropic.AuthenticationError) return 'La clave de Claude no es válida. Revisa ANTHROPIC_API_KEY en el archivo .env.'
-  if (err instanceof Anthropic.RateLimitError) return 'Luna está atendiendo muchos cuentos a la vez. Prueba de nuevo en un minuto.'
-  if (err instanceof Anthropic.APIConnectionError) return 'No pude conectarme. Revisa tu internet y prueba otra vez.'
+  if (err?.status === 401 || err?.status === 403) return 'La clave de Gemini no es válida. Revisa GEMINI_API_KEY.'
+  if (err?.status === 429) return 'Luna está atendiendo muchos cuentos a la vez. Prueba de nuevo en un minuto.'
+  if (err?.message === 'conexion') return 'No pude conectarme. Revisa tu internet y prueba otra vez.'
   if (err?.message === 'rechazo') return 'Luna no pudo escribir eso. Prueba contándolo de otra forma.'
   return 'Luna se distrajo un momento. Prueba otra vez.'
 }

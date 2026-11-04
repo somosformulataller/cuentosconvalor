@@ -12,7 +12,7 @@ export interface Cuento {
 }
 export interface Mensaje { id: number; rol: 'user' | 'assistant'; texto: string; creado?: string }
 export interface Capitulo { numero: number; titulo: string; texto: string; version: number }
-export interface Config { claude: boolean; voz: boolean; capitulos: number }
+export interface Config { ia: boolean; voz: boolean; capitulos: number }
 
 async function pedir<T>(metodo: string, ruta: string, datos?: unknown): Promise<T> {
   let res: Response

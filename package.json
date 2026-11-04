@@ -12,7 +12,6 @@
     "node": ">=22.13"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.4.0",
     "@breezystack/lamejs": "^1.2.7",
     "@vercel/functions": "^3.10.6",
     "postgres": "^4.0.0",

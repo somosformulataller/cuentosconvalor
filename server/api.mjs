@@ -4,7 +4,7 @@
 import { waitUntil } from '@vercel/functions'
 import { sql } from './db.mjs'
 import { abrirSesion, cerrarSesion, claveCorrecta, hashClave, usuarioDe } from './auth.mjs'
-import { errorAmable, escribir, hayClaude } from './luna.mjs'
+import { errorAmable, escribir, hayIA } from './luna.mjs'
 import { audioDe, hayVoz } from './voz.mjs'
 import { leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
 
@@ -39,7 +39,7 @@ const capitulosDe = (id) =>
   sql`select numero, titulo, texto, version from capitulos where cuento_id = ${id} order by numero`
 
 const rutas = [
-  ['GET', /^\/api\/config$/, (req, res) => json(res, 200, { claude: hayClaude(), voz: hayVoz(), capitulos: TOTAL_CAPITULOS })],
+  ['GET', /^\/api\/config$/, (req, res) => json(res, 200, { ia: hayIA(), voz: hayVoz(), capitulos: TOTAL_CAPITULOS })],
 
   ['GET', /^\/api\/yo$/, (req, res, u) => json(res, 200, { usuario: u })],
 

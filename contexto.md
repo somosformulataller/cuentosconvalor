@@ -5,8 +5,8 @@ Para arrancarla y ver cómo está armado el código, ver `README.md`.
 
 ## Qué es
 
-PWA para mamás y papás. Al iniciar sesión, **Luna** (la cuentacuentos, Claude
-por dentro) conversa en un chat y pregunta:
+PWA para mamás y papás. Al iniciar sesión, **Luna** (la cuentacuentos) conversa
+en un chat y pregunta:
 
 1. Cuéntame de tu hijo.
 2. ¿Qué valores quieres reforzar?
@@ -22,57 +22,58 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 - **Diseño:** colores pastel y amigables (crema, lavanda, durazno, menta,
   celeste, rosa), en `src/styles.css`.
 - **Chat:** inspirado en el chat de SARA del proyecto unaobra.
-- **Texto del cuento:** Claude, modelo `claude-opus-5-5` (se cambia con
-  `CLAUDE_MODEL`). Sin `ANTHROPIC_API_KEY` corre en *modo demostración* con un
-  cuento de ejemplo.
-- **Voz (cambio del 04-11-2026):** ahora narra **Gemini TTS**.
-  - Modelo `gemini-3.8-flash-tts`, voz `Sulafat` (cálida). Se cambian con
-    `GEMINI_TTS_MODEL` y `GEMINI_TTS_VOICE`. Otras voces suaves: `Vindemiatrix`
-    (gentil), `Achernar` (suave), `Achird` (amigable).
-  - El estilo de lectura («cuentacuentos antes de dormir, cálida, pausada») va
-    aparte del texto, en `speech_metadata.style`; el texto se lee tal cual.
-  - Cada capítulo se genera una sola vez por versión y se guarda como WAV en
-    `data/audio/`. Se empieza a preparar apenas Luna escribe el capítulo.
-  - Si no hay `GEMINI_API_KEY`, usa OpenAI TTS (`gpt-4o-mini-tts`, voz `coral`,
-    MP3) si hay `OPENAI_API_KEY`; si no hay ninguna, la voz del teléfono.
-  - Si el audio del servidor falla al sonar, la app sigue con la voz del teléfono.
-- **Datos:** SQLite local (`node:sqlite`) en `data/cuentos.db`, con las tablas
-  usuarios, sesiones, cuentos, mensajes y capitulos. Contraseñas con scrypt y
-  sesión por cookie HttpOnly.
+- **Todo con Gemini (04-11-2026), una sola clave `GEMINI_API_KEY`:**
+  - **Escribir:** `gemini-3.8-flash` (se cambia con `GEMINI_MODEL`), con la
+    Interactions API y `store: false` (Google no guarda la conversación). Se
+    eligió por costo: antes era Claude Opus 5.5.
+  - **Narrar:** `gemini-3.8-flash-tts`, voz `Sulafat` (cálida). Otras voces
+    suaves: `Vindemiatrix`, `Achernar`, `Achird`. Cada capítulo se narra una vez
+    por versión, se pasa a MP3 (64 kbps, ~10 veces más liviano que el WAV) y se
+    guarda en el bucket privado `audios` de Supabase. La app lo reproduce con un
+    enlace firmado que vence en un día.
+  - Sin la clave: modo demostración (cuento de ejemplo) y voz del teléfono.
+  - OpenAI TTS queda como respaldo de la voz si no hay clave de Gemini.
+- **Costo estimado por cuento (precios del 04-11-2026):** ~US$0,06 escribirlo y
+  ~US$0,14 narrarlo (10 min), unos **US$0,20** en total, ~50 cuentos por US$10.
+  **El 1-ene-2027 Gemini duplica sus precios** (~US$0,40 por cuento).
+- **No usar el nivel gratis de Gemini en producción:** Google usa ese contenido
+  para mejorar sus productos, y la app manda datos de niños.
+- **Hosting:** Vercel (`formula-taller/cuentosconvalor`) para la PWA y la API
+  (una función, hasta 300 s por respuesta); Supabase (`guluzhoumokowgepgarm`)
+  para la base Postgres y los audios. Ambos conectados a GitHub: push a `main`
+  despliega y aplica las migraciones.
+- **Datos:** tablas usuarios, sesiones, cuentos, mensajes y capitulos, con RLS
+  activado y sin políticas (solo entra el servidor). Contraseñas con scrypt y
+  sesión propia por cookie HttpOnly (no Supabase Auth).
 
 ## Estado actual
 
-- Solo corre en local (`npm run dev` → http://127.0.0.1:5230). Código en
-  github.com/somosformulataller/cuentosconvalor (rama `main`). Sin
-  hosting.
-- **`.env` local (04-11):** tiene `GEMINI_API_KEY` (por ahora la clave de
-  Formula Taller, que carga el gasto a ese proyecto) y falta `ANTHROPIC_API_KEY`,
-  así que el cuento sigue en modo demostración. La base tiene 1 usuario de
-  prueba, 1 cuento empezado y ningún capítulo.
-- La voz de Gemini **funciona**: el 04-11 narró un capítulo corto de prueba
-  (unos 23 s de audio, en 8,5 s). Falta probarla dentro de la app con un cuento
-  completo.
+- Código en github.com/somosformulataller/cuentosconvalor (rama `main`).
+- **Hecho en local, sin subir todavía:** el paso a Supabase + Vercel y el cambio
+  de Claude a Gemini Flash.
+- Probado el 04-11: Luna con Gemini Flash hace las preguntas (3–4 s) y escribe el
+  capítulo 1 (23 s, 286 palabras, formato correcto). La voz de Gemini narró una
+  prueba corta y la conversión a MP3 funciona (1,1 MB → 184 KB).
+- **Falta probar contra la base:** faltan `DATABASE_URL` y `SUPABASE_SECRET_KEY`.
+- El `.env` local usa por ahora la clave de Gemini de Formula Taller (el gasto se
+  carga a ese proyecto de Google).
 
 ## Pendientes y decisiones abiertas
 
-1. Poner `ANTHROPIC_API_KEY` en el `.env` y probar un cuento completo con voz.
-2. Crear claves propias de Claude y Gemini para Cuentos de valor.
-3. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
-4. Hosting: necesita disco persistente (SQLite y audios en `data/`). Lo
-   propuesto es Railway con un volumen en `data/`; la otra opción es Supabase +
-   Vercel, que obliga a reescribir la base y los audios. Falta decidir, junto
-   con el dominio.
-5. Antes de abrirla al público: límite de cuentos por cuenta (cada uno cuesta
-   en Claude y Gemini), copias de seguridad de la base, política de privacidad
-   (son datos de niños) y revisar si hay forma de recuperar la contraseña.
-6. Peso de los audios: el WAV pesa unos 2,9 MB por minuto (un capítulo de
-   2–3 min ≈ 6–9 MB). Para producción conviene convertirlos a MP3 u OGG, o pedir
-   un formato más liviano.
+1. Poner `DATABASE_URL` y `SUPABASE_SECRET_KEY` en el `.env`, aplicar la
+   migración, probar un cuento completo con voz en local y subir.
+2. Cargar las variables en Vercel: `DATABASE_URL`, `SUPABASE_URL`,
+   `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`.
+3. Crear una clave de Gemini propia para Cuentos de valor, de pago.
+4. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
+5. Dominio propio.
+6. Antes de abrirla al público: límite de cuentos por cuenta (cada uno cuesta),
+   copias de seguridad de la base, política de privacidad (son datos de niños)
+   y recuperar contraseña (hoy no existe).
 
 ## Notas de trabajo
 
 - Al cambiar algo en `server/` o `shared/` hay que reiniciar `npm run dev`.
 - Luna sabe en qué etapa va por una nota del sistema que arma `etapa()` en
-  `server/luna.mjs`.
-- `data/` (base y audios) no va al repo.
-- Necesita Node 22.13 o más nuevo.
+  `server/luna.mjs`; va pegada a las instrucciones fijas (`system_instruction`).
+- En local se usa la misma base de Supabase que en producción.
