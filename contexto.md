@@ -1,6 +1,6 @@
 # Contexto de Cuentos de valor
 
-Todo lo que hace falta para retomar la PWA. Actualizado el 04-11-2026.
+Todo lo que hace falta para retomar la PWA. Actualizado el 04-11-2026 (noche).
 Para arrancarla y ver cómo está armado el código, ver `README.md`.
 
 ## Qué es
@@ -73,6 +73,50 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 - Apagado de emergencia de la validación: `PAGOS_VALIDACION_AUTOMATICA=false`.
 - **Riesgo aceptado:** como el acceso es inmediato, una captura falsa pero
   legible da acceso hasta que se rechace en «Por revisar».
+
+## Cambios del 04-11-2026 (tarde), todos en producción
+
+- **Pixel de Meta `1352260146826294`** en `index.html` (PageView en todas las
+  páginas). Evento personalizado **`pagoUnCuento`** (value 9, USD) al tocar
+  «Confirmar pago y activar mi cuenta» (`src/lib/fbpixel.ts`, mismo esquema que
+  La Mejor Llave): una vez cada 24 h por navegador (`localStorage`
+  `fb-evento:pagoUnCuento`) y se envía **antes** de revisar la captura, así que
+  mide intención de pago, no pagos aprobados. Sin CAPI.
+  - En Meta hubo que agregar `cuentosdevalor.com` en **Permisos de tráfico** del
+    pixel; sin eso Meta bloqueaba todo («unavailable on this website due to
+    it's traffic permission settings»). Probado con Chrome automático: llegan
+    PageView y pagoUnCuento (un Chrome *headless* sin user agent normal no envía
+    nada: Meta lo toma como bot).
+  - Para repetir la prueba el mismo día: incógnito, o
+    `localStorage.removeItem('fb-evento:pagoUnCuento')`.
+- **Narración sin títulos:** la voz (Gemini y la del teléfono) lee solo el texto
+  del capítulo, sin «Capítulo N» ni el título. Los capítulos ya narrados antes
+  conservan su audio con título (para rehacerlos habría que borrar
+  `audio_version`, ~US$0,14 por cuento; no se hizo).
+- **Pasos fijos arriba en el chat** (Tu hijo, Valores, Personajes, El cuento):
+  `.cabecera` sticky en `Chat.tsx`. Ojo: tiene `backdrop-filter`, así que nada
+  con `position: fixed` (modales) puede ir dentro; por eso la ventana de pago
+  se veía recortada y se sacó de ahí.
+- **Modal de pago:** botón para copiar cada dato (banco, teléfono `04220166113`,
+  cédula `18033691` y monto en Bs como `8038,96`).
+- **Soporte por WhatsApp 0424-2349786** (`Soporte` en `PagoModal.tsx`, enlace
+  `wa.me/584242349786` con mensaje escrito):
+  - en el modal de pago, debajo del error, si el OCR no lee la captura (también
+    si ya se usó o el OCR no responde);
+  - si un pago queda «Por revisar» (`en_revision` en `/api/suscripcion`), una
+    ventana una vez al día: «No encontramos tu pago en el banco».
+- **Landing `/inicio`** (`src/screens/Landing.tsx`): título, video vertical, texto
+  de los $9 por Pago Móvil y botón «Sí, deseo activar mi cuenta ahora mismo» →
+  `/registro`. Se ve sin sesión. Video en `public/video/inicio.mp4` (comprimido
+  de 136 MB a 9 MB, 720p) con portada `inicio.jpg`; el service worker no toca
+  `/video/` (iPhone falla con video por el SW). El título dice «3 minutos» y el
+  video dura 3:57 (lo dejó así la usuaria).
+- **Direcciones sin número:** el chat es `/cuento` y el libro `/libro`; el id va
+  en `history.state` y en `localStorage` (`cuento-actual`), ver
+  `abrirCuento()` en `src/lib/router.ts`. Los enlaces usan
+  `<a href="/cuento" data-cuento={id}>`. Las direcciones viejas
+  (`/cuento/13`, `/cuento/13/libro`) se limpian solas. Al cerrar sesión se olvida
+  el cuento. Ya no hay enlace para compartir un cuento concreto.
 
 ## Estado actual
 
