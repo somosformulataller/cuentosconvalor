@@ -1,9 +1,11 @@
 // Registro, entrada y sesión por cookie (HttpOnly, 30 días).
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
-import { db } from './db.mjs'
+import { sql } from './db.mjs'
 
 const COOKIE = 'cv_sesion'
 const DIAS = 30
+// En producción (Vercel, con HTTPS) la cookie solo viaja cifrada
+const SEGURA = process.env.VERCEL ? '; Secure' : ''
 
 export function hashClave(clave) {
   const sal = randomBytes(16)
@@ -16,28 +18,25 @@ export function claveCorrecta(clave, guardada) {
   return timingSafeEqual(a, Buffer.from(hash, 'hex'))
 }
 
-export function abrirSesion(res, usuarioId) {
+export async function abrirSesion(res, usuarioId) {
   const token = randomBytes(32).toString('base64url')
-  const vence = Date.now() + DIAS * 864e5
-  db.prepare('insert into sesiones (token, usuario_id, vence) values (?, ?, ?)').run(token, usuarioId, vence)
-  res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${DIAS * 86400}`)
+  const vence = new Date(Date.now() + DIAS * 864e5)
+  await sql`insert into sesiones (token, usuario_id, vence) values (${token}, ${usuarioId}, ${vence})`
+  res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${DIAS * 86400}${SEGURA}`)
 }
 
-export function cerrarSesion(req, res) {
+export async function cerrarSesion(req, res) {
   const token = leerCookie(req)
-  if (token) db.prepare('delete from sesiones where token = ?').run(token)
-  res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`)
+  if (token) await sql`delete from sesiones where token = ${token}`
+  res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${SEGURA}`)
 }
 
-export function usuarioDe(req) {
+export async function usuarioDe(req) {
   const token = leerCookie(req)
   if (!token) return null
-  const fila = db
-    .prepare(
-      `select u.id, u.nombre, u.email from sesiones s join usuarios u on u.id = s.usuario_id
-       where s.token = ? and s.vence > ?`,
-    )
-    .get(token, Date.now())
+  const [fila] = await sql`
+    select u.id, u.nombre, u.email from sesiones s join usuarios u on u.id = s.usuario_id
+    where s.token = ${token} and s.vence > now()`
   return fila ?? null
 }
 

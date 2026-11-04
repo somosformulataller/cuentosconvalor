@@ -1,14 +1,13 @@
-// La voz que narra el cuento: un audio por capítulo guardado en data/audio.
-// - Con GEMINI_API_KEY narra Gemini TTS (WAV, 24 kHz).
+// La voz que narra el cuento: un MP3 por capítulo, guardado en el bucket
+// privado «audios» de Supabase Storage.
+// - Con GEMINI_API_KEY narra Gemini TTS (llega en WAV y se pasa a MP3).
 // - Si no, con OPENAI_API_KEY narra OpenAI TTS (MP3).
 // - Sin ninguna, la app usa la voz del propio teléfono.
-import { existsSync } from 'node:fs'
-import { writeFile, rename } from 'node:fs/promises'
-import path from 'node:path'
-import { DATA_DIR } from './db.mjs'
+import { Mp3Encoder } from '@breezystack/lamejs'
+import { sql } from './db.mjs'
 
 const proveedor = () => (process.env.GEMINI_API_KEY ? 'gemini' : process.env.OPENAI_API_KEY ? 'openai' : null)
-export const hayVoz = () => !!proveedor()
+export const hayVoz = () => !!proveedor() && !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SECRET_KEY
 
 const INSTRUCCIONES =
   'Eres una cuentacuentos que lee un cuento infantil en español latinoamericano. Voz cálida, dulce y tranquila, ' +
@@ -18,34 +17,54 @@ const INSTRUCCIONES =
 const ESTILO_GEMINI =
   'Cuentacuentos en español latinoamericano leyendo antes de dormir: cálida, dulce y tranquila, ritmo pausado, expresiva en los diálogos'
 
+const BUCKET = 'audios'
 const enCurso = new Map()
 
-export function rutaAudio(cuentoId, cap) {
-  const ext = proveedor() === 'gemini' ? 'wav' : 'mp3'
-  return path.join(DATA_DIR, 'audio', `${cuentoId}-${cap.numero}-v${cap.version}.${ext}`)
-}
-
-export const tipoAudio = (ruta) => (ruta.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg')
-
-/** El audio del capítulo; lo genera una sola vez por versión del texto. */
-export function audioDe(cuentoId, cap) {
-  const ruta = rutaAudio(cuentoId, cap)
-  if (existsSync(ruta)) return Promise.resolve(ruta)
+/**
+ * Enlace firmado (vence en un día) al MP3 del capítulo. Lo genera una sola vez
+ * por versión del texto. `cap` es la fila de capitulos.
+ */
+export async function audioDe(cuentoId, cap) {
+  if (cap.audio && cap.audio_version === cap.version) return firmar(cap.audio)
+  const ruta = `${cuentoId}/${cap.numero}-v${cap.version}.mp3`
   if (!enCurso.has(ruta)) {
-    const texto = `Capítulo ${cap.numero}. ${cap.titulo}.\n\n${cap.texto}`
-    const p = (proveedor() === 'gemini' ? conGemini(texto) : conOpenAI(texto))
-      .then((audio) => guardar(audio, ruta))
-      .finally(() => enCurso.delete(ruta))
+    const p = preparar(cuentoId, cap, ruta).finally(() => enCurso.delete(ruta))
     enCurso.set(ruta, p)
   }
-  return enCurso.get(ruta)
+  await enCurso.get(ruta)
+  return firmar(ruta)
 }
 
-async function guardar(audio, ruta) {
-  const tmp = `${ruta}.tmp`
-  await writeFile(tmp, audio)
-  await rename(tmp, ruta)
-  return ruta
+async function preparar(cuentoId, cap, ruta) {
+  const texto = `Capítulo ${cap.numero}. ${cap.titulo}.\n\n${cap.texto}`
+  const mp3 = proveedor() === 'gemini' ? aMp3(await conGemini(texto)) : await conOpenAI(texto)
+  await storage(`/object/${BUCKET}/${ruta}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'audio/mpeg', 'x-upsert': 'true', 'Cache-Control': '31536000' },
+    body: mp3,
+  })
+  await sql`update capitulos set audio = ${ruta}, audio_version = ${cap.version}
+            where cuento_id = ${cuentoId} and numero = ${cap.numero} and version = ${cap.version}`
+}
+
+async function firmar(ruta) {
+  const r = await storage(`/object/sign/${BUCKET}/${ruta}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 86400 }),
+  })
+  const { signedURL } = await r.json()
+  return `${process.env.SUPABASE_URL}/storage/v1${signedURL}`
+}
+
+async function storage(camino, init) {
+  const clave = process.env.SUPABASE_SECRET_KEY
+  const res = await fetch(`${process.env.SUPABASE_URL}/storage/v1${camino}`, {
+    ...init,
+    headers: { ...init.headers, apikey: clave, Authorization: `Bearer ${clave}` },
+  })
+  if (!res.ok) throw new Error(`storage ${res.status}: ${(await res.text()).slice(0, 200)}`)
+  return res
 }
 
 async function conGemini(texto) {
@@ -74,27 +93,35 @@ async function conGemini(texto) {
   const json = await res.json()
   const datos = (json.steps ?? []).flatMap((s) => s.content ?? []).find((c) => c?.data)?.data
   if (!datos) throw new Error(`gemini tts sin audio: ${JSON.stringify(json).slice(0, 300)}`)
-  const audio = Buffer.from(datos, 'base64')
-  // Lo normal es un WAV completo; si llega PCM crudo se le pone la cabecera
-  return audio.subarray(0, 4).toString('ascii') === 'RIFF' ? audio : wav(audio)
+  return Buffer.from(datos, 'base64')
 }
 
-/** Cabecera WAV para PCM de 16 bits, mono, 24 kHz */
-function wav(pcm, rate = 24000) {
-  const h = Buffer.alloc(44)
-  h.write('RIFF', 0)
-  h.writeUInt32LE(36 + pcm.length, 4)
-  h.write('WAVEfmt ', 8)
-  h.writeUInt32LE(16, 16)
-  h.writeUInt16LE(1, 20)
-  h.writeUInt16LE(1, 22)
-  h.writeUInt32LE(rate, 24)
-  h.writeUInt32LE(rate * 2, 28)
-  h.writeUInt16LE(2, 32)
-  h.writeUInt16LE(16, 34)
-  h.write('data', 36)
-  h.writeUInt32LE(pcm.length, 40)
-  return Buffer.concat([h, pcm])
+/** WAV (o PCM crudo) de 16 bits mono → MP3 de 64 kbps, ~10 veces más liviano */
+export function aMp3(audio) {
+  let pcm = audio
+  let rate = 24000
+  if (audio.subarray(0, 4).toString('ascii') === 'RIFF') {
+    rate = audio.readUInt32LE(24)
+    // Busca el bloque «data» (puede haber otros antes)
+    let i = 12
+    while (i + 8 <= audio.length) {
+      const id = audio.subarray(i, i + 4).toString('ascii')
+      const largo = audio.readUInt32LE(i + 4)
+      if (id === 'data') {
+        pcm = audio.subarray(i + 8, Math.min(i + 8 + largo, audio.length))
+        break
+      }
+      i += 8 + largo + (largo % 2)
+    }
+  }
+  const muestras = new Int16Array(pcm.buffer, pcm.byteOffset, Math.floor(pcm.length / 2))
+  const enc = new Mp3Encoder(1, rate, 64)
+  const partes = []
+  for (let i = 0; i < muestras.length; i += 1152 * 20) {
+    partes.push(Buffer.from(enc.encodeBuffer(muestras.subarray(i, i + 1152 * 20))))
+  }
+  partes.push(Buffer.from(enc.flush()))
+  return Buffer.concat(partes)
 }
 
 async function conOpenAI(texto) {
