@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { api } from '../lib/api'
 import { detener } from '../lib/narrar'
-import { ir } from '../lib/router'
+import { ir, olvidarCuento } from '../lib/router'
 import { sesion } from '../lib/sesion'
 import { DescargarApp } from './DescargarApp'
 
@@ -39,6 +39,7 @@ export function Menu({ alNuevo }: { alNuevo?: () => void }) {
             onClick={async () => {
               detener()
               await api.salir().catch(() => {})
+              olvidarCuento()
               ir('/', true)
               sesion.set(null)
             }}

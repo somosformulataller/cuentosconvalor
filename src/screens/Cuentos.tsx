@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { TOTAL_CAPITULOS } from '../../shared/formato.js'
 import { api, type Cuento } from '../lib/api'
-import { ir } from '../lib/router'
+import { abrirCuento, ir } from '../lib/router'
 import { sesion } from '../lib/sesion'
 import { Cargando } from '../ui/Cargando'
 import { Logo } from '../ui/Logo'
@@ -24,7 +24,7 @@ export function Cuentos() {
 
   async function nuevo() {
     const { id } = await api.nuevo()
-    ir(`/cuento/${id}`)
+    abrirCuento(id)
   }
 
   if (!cuentos && !error) return <Cargando />
@@ -52,7 +52,7 @@ export function Cuentos() {
         <ul class="estante__lista">
           {cuentos?.map((c, i) => (
               <li key={c.id}>
-                <a href={c.estado === 'listo' ? `/cuento/${c.id}/libro` : `/cuento/${c.id}`} class={`lomo lomo--${COLORES[i % 4]}`}>
+                <a href={c.estado === 'listo' ? '/libro' : '/cuento'} data-cuento={c.id} class={`lomo lomo--${COLORES[i % 4]}`}>
                   <span class="lomo__icono" aria-hidden="true">{c.estado === 'listo' ? '📖' : '✏️'}</span>
                   <span class="lomo__texto">
                     <strong>{c.titulo ?? 'Cuento en preparación'}</strong>
@@ -63,7 +63,7 @@ export function Cuentos() {
                   </span>
                 </a>
                 {c.estado === 'listo' && (
-                  <a href={`/cuento/${c.id}`} class="lomo__chat">Ver la conversación</a>
+                  <a href="/cuento" data-cuento={c.id} class="lomo__chat">Ver la conversación</a>
                 )}
               </li>
             ))}

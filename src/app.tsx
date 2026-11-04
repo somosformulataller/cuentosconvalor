@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, type Usuario } from './lib/api'
 import { usarVozDelServidor } from './lib/narrar'
-import { ir, useRuta } from './lib/router'
+import { abrirCuento, cuentoActual, ir, useRuta } from './lib/router'
 import { sesion } from './lib/sesion'
 import { Cargando } from './ui/Cargando'
 import { Entrar } from './screens/Entrar'
@@ -36,10 +36,16 @@ export function App() {
     return <Entrar />
   }
 
-  const libro = ruta.match(/^\/cuento\/(\d+)\/libro$/)
-  if (libro) return <Libro id={Number(libro[1])} />
-  const chat = ruta.match(/^\/cuento\/(\d+)$/)
-  if (chat) return <Chat key={chat[1]} id={Number(chat[1])} />
+  // Direcciones viejas con el número (/cuento/13, /cuento/13/libro): se limpian
+  const vieja = ruta.match(/^\/cuento\/(\d+)(\/libro)?$/)
+  if (vieja) {
+    // Fuera del render: cambia la dirección y vuelve a pintar
+    setTimeout(() => abrirCuento(Number(vieja[1]), vieja[2] ? 'libro' : 'chat', true))
+    return <Cargando texto="Abriendo tu cuento…" />
+  }
+  const id = cuentoActual()
+  if (ruta === '/libro' && id) return <Libro key={id} id={id} />
+  if (ruta === '/cuento' && id) return <Chat key={id} id={id} />
   if (ruta === '/cuentos') return <Cuentos />
   if (ruta === '/admin' && usuario.es_admin) return <Admin />
   return <Inicio usuario={usuario} />
@@ -52,8 +58,8 @@ function Inicio({ usuario }: { usuario: Usuario }) {
       .cuentos()
       .then(({ cuentos }) => {
         const aMedias = cuentos.find((c) => c.estado === 'creando')
-        if (aMedias) return ir(`/cuento/${aMedias.id}`, true)
-        return api.nuevo().then(({ id }) => ir(`/cuento/${id}`, true))
+        if (aMedias) return abrirCuento(aMedias.id, 'chat', true)
+        return api.nuevo().then(({ id }) => abrirCuento(id, 'chat', true))
       })
       .catch(() => ir('/cuentos', true))
   }, [usuario.id])

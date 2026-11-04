@@ -2,7 +2,7 @@ import { Fragment } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { leerRespuesta, TOTAL_CAPITULOS } from '../../shared/formato.js'
 import { api, responder, type Capitulo, type Cuento, type Mensaje } from '../lib/api'
-import { ir } from '../lib/router'
+import { abrirCuento, ir } from '../lib/router'
 import { narrar, pausarOSeguir, voz } from '../lib/narrar'
 import { Cargando } from '../ui/Cargando'
 import { Luna } from '../ui/Luna'
@@ -98,7 +98,7 @@ export function Chat({ id }: { id: number }) {
 
   async function nuevo() {
     const { id } = await api.nuevo()
-    ir(`/cuento/${id}`)
+    abrirCuento(id)
   }
 
   if (!cuento && !error) return <Cargando texto="Abriendo tu cuento…" />
@@ -160,7 +160,7 @@ export function Chat({ id }: { id: number }) {
             <span class="listo__brillo" aria-hidden="true">🌟</span>
             <h2>¡Tu cuento está listo!</h2>
             <p>{cuento.titulo ? `«${cuento.titulo}»` : 'Ya puedes leerlo'}, con sus {TOTAL_CAPITULOS} capítulos y la voz de Luna.</p>
-            <a href={`/cuento/${id}/libro`} class="boton boton--principal boton--grande">📖 Leer y escuchar el cuento</a>
+            <a href="/libro" data-cuento={id} class="boton boton--principal boton--grande">📖 Leer y escuchar el cuento</a>
             <button type="button" class="boton boton--suave" onClick={nuevo}>✨ Crear otro cuento</button>
           </section>
         )}

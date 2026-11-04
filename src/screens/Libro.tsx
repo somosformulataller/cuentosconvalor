@@ -33,7 +33,7 @@ export function Libro({ id }: { id: number }) {
   return (
     <>
       <header class="barra barra--libro">
-        <a href={`/cuento/${id}`} class="boton boton--suave boton--chico">← Conversación</a>
+        <a href="/cuento" data-cuento={id} class="boton boton--suave boton--chico">← Conversación</a>
         <a href="/cuentos" class="boton boton--suave boton--chico">📚 Mis cuentos</a>
       </header>
       <main class="libro">
