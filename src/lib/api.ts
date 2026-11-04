@@ -63,6 +63,7 @@ export const api = {
     pagos: (filtro: string) => pedir<{ pagos: AdminPago[] }>('GET', `/admin/pagos?filtro=${filtro}`),
     decidir: (id: string, accion: 'aprobar' | 'rechazar' | 'revalidar', nota = '') =>
       pedir<{ ok: true }>('POST', `/admin/pagos/${id}`, { accion, nota }),
+    banco: () => pedir<{ movimientos: Movimiento[] }>('GET', '/admin/banco'),
     usuarios: () => pedir<{ usuarios: AdminUsuario[] }>('GET', '/admin/usuarios'),
     usuario: (id: number) => pedir<AdminDetalle>('GET', `/admin/usuarios/${id}`),
   },
@@ -99,6 +100,17 @@ export interface AdminPago {
   revisado_en: string | null
   captura: string | null
   usuarios: { nombre: string; email: string } | null
+}
+/** Un abono del estado de cuenta compartido, con la app a la que pertenece. */
+export interface Movimiento {
+  id: number
+  fecha: string
+  referencia: string
+  descripcion: string
+  monto: number
+  used: boolean
+  app: 'cuentos' | 'otra_app' | 'libre'
+  pago: { id: string; estado: 'aprobado' | 'verificando'; nombre: string | null } | null
 }
 export interface Actividad { usuario_id?: number; tipo: string; creado: string; detalle?: Record<string, unknown> | null; id?: number }
 export interface AdminUsuario {

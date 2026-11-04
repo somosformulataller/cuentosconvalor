@@ -1307,3 +1307,41 @@ button {
     text-align: left;
   }
 }
+
+/* De qué app es cada pago o abono del banco (la cuenta la comparten tres apps) */
+.etiqueta-app {
+  justify-self: start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.etiqueta-app--cuentos {
+  background: var(--lavanda);
+  color: var(--lavanda-fuerte);
+}
+
+.etiqueta-app--otra_app {
+  background: var(--durazno);
+  color: #9a4f34;
+}
+
+.etiqueta-app--libre {
+  background: var(--linea);
+  color: var(--tinta-2);
+}
+
+.admin__movimiento {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+}
+
+.admin__movimiento p {
+  margin: 0;
+}
+
+.admin__movimiento small {
+  color: var(--tinta-2);
+}

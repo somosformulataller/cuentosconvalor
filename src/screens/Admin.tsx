@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api, type Actividad, type AdminDetalle, type AdminPago, type AdminResumen, type AdminUsuario } from '../lib/api'
+import { api, type Actividad, type AdminDetalle, type AdminPago, type AdminResumen, type AdminUsuario, type Movimiento } from '../lib/api'
 import { formatoBs } from '../lib/suscripcion'
 import { Logo } from '../ui/Logo'
 import { Menu } from '../ui/Menu'
@@ -10,7 +10,14 @@ import { Menu } from '../ui/Menu'
    el banco los confirma; aquí llegan los que necesitan a una persona.
    ─────────────────────────────────────────────────────────────────────────── */
 
-type Pestana = 'resumen' | 'pagos' | 'usuarios'
+type Pestana = 'resumen' | 'pagos' | 'banco' | 'usuarios'
+
+const PESTANAS: [Pestana, string][] = [
+  ['resumen', '📊 Resumen'],
+  ['pagos', '💳 Pagos'],
+  ['banco', '🏦 Banco'],
+  ['usuarios', '👥 Usuarios'],
+]
 
 const fecha = (iso: string | null) =>
   iso
@@ -63,15 +70,16 @@ export function Admin() {
         <Menu />
       </header>
       <nav class="admin__pestanas">
-        {(['resumen', 'pagos', 'usuarios'] as Pestana[]).map((p) => (
+        {PESTANAS.map(([p, t]) => (
           <button key={p} type="button" class={pestana === p ? 'activa' : ''} onClick={() => setPestana(p)}>
-            {p === 'resumen' ? '📊 Resumen' : p === 'pagos' ? '💳 Pagos' : '👥 Usuarios'}
+            {t}
           </button>
         ))}
       </nav>
       <main class="admin">
         {pestana === 'resumen' && <Resumen />}
         {pestana === 'pagos' && <Pagos />}
+        {pestana === 'banco' && <Banco />}
         {pestana === 'usuarios' && <Usuarios />}
       </main>
     </>
@@ -181,6 +189,7 @@ function Pagos() {
                 </a>
               )}
               <div class="admin__pago-datos">
+                <span class="etiqueta-app etiqueta-app--cuentos">🌙 Cuentos de valor</span>
                 <strong>{p.usuarios?.nombre ?? '—'}</strong> <small>{p.usuarios?.email}</small>
                 <p>
                   {fecha(p.creado)} · ref <b>{p.referencia_completa ?? p.referencia}</b>
@@ -212,6 +221,104 @@ function Pagos() {
                   </div>
                 )}
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  )
+}
+
+const FILTROS_BANCO = [
+  ['cuentos', '🌙 Solo Cuentos de valor'],
+  ['todos', 'Todos'],
+  ['otra_app', '🔑 La Mejor Llave / Formula Taller'],
+  ['libre', '⚪ Libres'],
+] as const
+
+const APP_TEXTO: Record<Movimiento['app'], string> = {
+  cuentos: '🌙 Cuentos de valor',
+  otra_app: '🔑 Otra app (La Mejor Llave o Formula Taller)',
+  libre: '⚪ Libre: nadie lo ha reclamado',
+}
+
+/**
+ * El estado de cuenta del banco, que comparten las tres apps. Cada abono dice
+ * de quién es; los de Cuentos de valor que esperan aprobación se deciden aquí.
+ */
+function Banco() {
+  const [filtro, setFiltro] = useState<string>('cuentos')
+  const [movs, setMovs] = useState<Movimiento[] | null>(null)
+  const [error, setError] = useState('')
+  const [ocupado, setOcupado] = useState('')
+
+  const cargar = () => {
+    setMovs(null)
+    api.admin.banco().then((d) => setMovs(d.movimientos)).catch((e) => setError((e as Error).message))
+  }
+  useEffect(cargar, [])
+
+  async function decidir(id: string, accion: 'aprobar' | 'rechazar') {
+    let nota = ''
+    if (accion === 'rechazar') {
+      nota = prompt('¿Por qué se rechaza? (se le quitarán los 30 días que dio este pago)') ?? ''
+      if (!nota.trim()) return
+    } else if (!confirm('¿Aprobar este pago de Cuentos de valor?')) return
+    setOcupado(id)
+    setError('')
+    try {
+      await api.admin.decidir(id, accion, nota)
+      cargar()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+    setOcupado('')
+  }
+
+  const lista = movs?.filter((m) => filtro === 'todos' || m.app === filtro) ?? []
+  return (
+    <>
+      <p class="admin__vacio">
+        Los últimos abonos de la cuenta del Banco de Venezuela (0102***7113), que comparten Cuentos de valor, La Mejor Llave y Formula Taller.
+      </p>
+      <div class="admin__filtros">
+        {FILTROS_BANCO.map(([k, t]) => (
+          <button key={k} type="button" class={`chip${filtro === k ? ' chip--fuerte' : ''}`} onClick={() => setFiltro(k)}>
+            {t}
+            {movs && ` (${k === 'todos' ? movs.length : movs.filter((m) => m.app === k).length})`}
+          </button>
+        ))}
+        <button type="button" class="chip" onClick={cargar}>🔄 Actualizar</button>
+      </div>
+      {error && <p class="aviso">{error}</p>}
+      {!movs ? (
+        <p>Cargando…</p>
+      ) : !lista.length ? (
+        <p class="admin__vacio">No hay movimientos aquí.</p>
+      ) : (
+        <ul class="admin__lista">
+          {lista.map((m) => (
+            <li key={m.id} class="tarjeta admin__movimiento">
+              <span class={`etiqueta-app etiqueta-app--${m.app}`}>{APP_TEXTO[m.app]}</span>
+              <p>
+                <strong>{formatoBs(m.monto)}</strong> · ref <b>{m.referencia}</b> · {fecha(m.fecha)}
+              </p>
+              {m.descripcion && <small>{m.descripcion}</small>}
+              {m.pago && (
+                <p>
+                  {m.pago.nombre ?? 'Usuario'} · {m.pago.estado === 'aprobado' ? '✅ pago aprobado' : '⏳ pago por aprobar'}
+                </p>
+              )}
+              {m.pago?.estado === 'verificando' && (
+                <div class="admin__acciones">
+                  <button type="button" class="boton boton--principal boton--chico" disabled={!!ocupado} onClick={() => decidir(m.pago!.id, 'aprobar')}>
+                    Aprobar
+                  </button>
+                  <button type="button" class="boton boton--peligro boton--chico" disabled={!!ocupado} onClick={() => decidir(m.pago!.id, 'rechazar')}>
+                    Rechazar
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

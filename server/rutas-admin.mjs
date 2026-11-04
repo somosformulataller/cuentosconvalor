@@ -3,10 +3,10 @@
 import { db, q } from './db.mjs'
 import { evento } from './eventos.mjs'
 import { cuerpo, json } from './http.mjs'
-import { bancoConfigurado } from './pagos/banco.mjs'
+import { bancoConfigurado, leerEstadoDeCuenta } from './pagos/banco.mjs'
 import { conciliar, reclamarPagoManual } from './pagos/conciliar.mjs'
 import { ocrConfigurado } from './pagos/ocr.mjs'
-import { REVISION_TEXTO, validacionActiva } from './pagos/reglas.mjs'
+import { REVISION_TEXTO, cola6, mismaReferencia, validacionActiva } from './pagos/reglas.mjs'
 import { activo, diasRestantes } from './suscripcion.mjs'
 
 const soloAdmin = (manejar) => (req, res, u, args) =>
@@ -116,6 +116,35 @@ export const rutasAdmin = [
       if (error || !ok) return json(res, 409, { error: 'No se pudo: el pago ya no está en verificación.' })
       await evento(pago.usuario_id, accion === 'aprobar' ? 'pago_aprobado' : 'pago_rechazado', { pago: id, origen: 'manual', nota: constancia })
       json(res, 200, { ok: true })
+    }),
+  ],
+
+  [
+    'GET',
+    /^\/api\/admin\/banco$/,
+    soloAdmin(async (req, res) => {
+      // El estado de cuenta lo comparten tres apps (Cuentos de valor, La Mejor
+      // Llave y Formula Taller). Cada abono se identifica así:
+      //   cuentos   → lo tomó un pago nuestro (bank_tx_id) o lo espera uno «verificando»
+      //   otra_app  → ya figura usado y no es nuestro: lo tomó La Mejor Llave o Formula Taller
+      //   libre     → nadie lo ha reclamado todavía
+      const movs = (await leerEstadoDeCuenta(200)).filter((m) => m.tipo === 'CREDITO')
+      if (!movs.length) return json(res, 200, { movimientos: [] })
+      const [aprobados, verificando] = await Promise.all([
+        q(db().from('pagos').select('id, bank_tx_id, usuarios!pagos_usuario_id_fkey(nombre)').not('bank_tx_id', 'is', null)
+          .in('bank_tx_id', movs.map((m) => m.id))),
+        q(db().from('pagos').select('id, referencia, referencia_completa, revision, usuarios!pagos_usuario_id_fkey(nombre)').eq('estado', 'verificando')),
+      ])
+      const porMovimiento = new Map(aprobados.map((p) => [Number(p.bank_tx_id), p]))
+      const movimientos = movs.map((m) => {
+        const nuestro = porMovimiento.get(m.id)
+        if (nuestro) return { ...m, app: 'cuentos', pago: { id: nuestro.id, estado: 'aprobado', nombre: nuestro.usuarios?.nombre ?? null } }
+        const espera = !m.used && verificando.find((p) => String(m.referencia).endsWith(cola6(p.referencia)) &&
+          (!p.referencia_completa || mismaReferencia(p.referencia_completa, m.referencia)))
+        if (espera) return { ...m, app: 'cuentos', pago: { id: espera.id, estado: 'verificando', nombre: espera.usuarios?.nombre ?? null } }
+        return { ...m, app: m.used ? 'otra_app' : 'libre', pago: null }
+      })
+      json(res, 200, { movimientos })
     }),
   ],
 
