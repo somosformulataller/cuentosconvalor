@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="f" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d9ccf5"/><stop offset="1" stop-color="#ffd6c7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#f)"/>
+  <!-- luna -->
+  <path d="M326 92a74 74 0 1 0 72 98 60 60 0 1 1-72-98z" fill="#fff6c9"/>
+  <!-- estrellas -->
+  <path d="M150 120l8 18 18 8-18 8-8 18-8-18-18-8 18-8z" fill="#fff"/>
+  <path d="M232 70l5 11 11 5-11 5-5 11-5-11-11-5 11-5z" fill="#fff" opacity=".85"/>
+  <!-- libro -->
+  <path d="M96 268c56-26 112-26 160 8v148c-48-34-104-34-160-8z" fill="#fff"/>
+  <path d="M416 268c-56-26-112-26-160 8v148c48-34 104-34 160-8z" fill="#fdfbff"/>
+  <path d="M256 276v148" stroke="#b9a6e8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M128 304c32-10 64-8 96 6M128 340c32-10 64-8 96 6M288 310c32-14 64-16 96-6M288 346c32-14 64-16 96-6" stroke="#c9e9dc" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <!-- corazón -->
+  <path d="M256 236c-14-22-48-16-48 10 0 20 28 36 48 52 20-16 48-32 48-52 0-26-34-32-48-10z" fill="#ff9fb4"/>
+</svg>
