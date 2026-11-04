@@ -42,23 +42,30 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 
 ## Estado actual
 
-- Solo corre en local (`npm run dev` → http://127.0.0.1:5230). Sin git y sin
+- Solo corre en local (`npm run dev` → http://127.0.0.1:5230). Código en
+  github.com/somosformulataller/cuentosconvalor (rama `main`). Sin
   hosting.
-- **No hay `.env`:** sin claves, la app está en modo demostración y con la voz
-  del teléfono. La base tiene 1 usuario de prueba, 1 cuento empezado y ningún
-  capítulo.
-- La voz de Gemini está programada pero **no se ha probado con una clave real**.
+- **`.env` local (04-11):** tiene `GEMINI_API_KEY` (por ahora la clave de
+  Formula Taller, que carga el gasto a ese proyecto) y falta `ANTHROPIC_API_KEY`,
+  así que el cuento sigue en modo demostración. La base tiene 1 usuario de
+  prueba, 1 cuento empezado y ningún capítulo.
+- La voz de Gemini **funciona**: el 04-11 narró un capítulo corto de prueba
+  (unos 23 s de audio, en 8,5 s). Falta probarla dentro de la app con un cuento
+  completo.
 
 ## Pendientes y decisiones abiertas
 
-1. Crear `.env` (copiar `.env.example`) con `ANTHROPIC_API_KEY` y
-   `GEMINI_API_KEY` (se saca en Google AI Studio), y probar un cuento completo
-   con voz.
-2. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
-3. Decidir hosting y base de datos para producción (¿Supabase?, ¿Vercel?). Hoy
-   todo es local.
-4. Poner git al proyecto.
-5. Peso de los audios: el WAV pesa unos 2,9 MB por minuto (un capítulo de
+1. Poner `ANTHROPIC_API_KEY` en el `.env` y probar un cuento completo con voz.
+2. Crear claves propias de Claude y Gemini para Cuentos de valor.
+3. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
+4. Hosting: necesita disco persistente (SQLite y audios en `data/`). Lo
+   propuesto es Railway con un volumen en `data/`; la otra opción es Supabase +
+   Vercel, que obliga a reescribir la base y los audios. Falta decidir, junto
+   con el dominio.
+5. Antes de abrirla al público: límite de cuentos por cuenta (cada uno cuesta
+   en Claude y Gemini), copias de seguridad de la base, política de privacidad
+   (son datos de niños) y revisar si hay forma de recuperar la contraseña.
+6. Peso de los audios: el WAV pesa unos 2,9 MB por minuto (un capítulo de
    2–3 min ≈ 6–9 MB). Para producción conviene convertirlos a MP3 u OGG, o pedir
    un formato más liviano.
 
