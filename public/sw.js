@@ -1,6 +1,6 @@
 // Service worker: la app se puede descargar en el teléfono y abre sin conexión
 // (con lo último que se vio). La API nunca se guarda: siempre va a la red.
-const CACHE = 'cuentos-v1'
+const CACHE = 'cuentos-v2'
 const BASE = ['/', '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png']
 
 self.addEventListener('install', (e) => {
@@ -15,7 +15,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/video/')) return
   // Las páginas: primero la red, y si no hay, la última guardada.
   if (e.request.mode === 'navigate') {
     e.respondWith(

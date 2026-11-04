@@ -24,7 +24,7 @@ export const montoBs = (tasa) => (tasa ? Math.round(PRECIO_USD() * tasa * 100) /
 export async function estadoSuscripcion(u) {
   const [tasa, verificando] = await Promise.all([
     tasaBcv(),
-    q(db().from('pagos').select('id').eq('usuario_id', u.id).eq('estado', 'verificando').limit(1)),
+    q(db().from('pagos').select('id, revision').eq('usuario_id', u.id).eq('estado', 'verificando')),
   ])
   return {
     activo: activo(u),
@@ -37,5 +37,7 @@ export async function estadoSuscripcion(u) {
     fecha_tasa: tasa?.fecha ?? null,
     datos: DATOS_PAGO_MOVIL,
     verificando: verificando.length > 0,
+    // El banco no lo confirmó solo: lo revisa una persona («Por revisar»)
+    en_revision: verificando.some((p) => p.revision),
   }
 }

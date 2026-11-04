@@ -75,7 +75,12 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
           {vista ? <img src={vista} alt="Tu captura" /> : <span>📷 Elegir la captura del pago</span>}
         </label>
 
-        {error && <p class="aviso" role="alert">{error}</p>}
+        {error && (
+          <>
+            <p class="aviso" role="alert">{error}</p>
+            <Soporte mensaje="Hola, subí la captura de mi Pago Móvil en Cuentos de valor y no se pudo leer. ¿Me ayudan a activar mi cuenta?" />
+          </>
+        )}
 
         <button type="button" class="boton boton--principal boton--grande" disabled={!archivo || enviando} onClick={confirmar}>
           {enviando ? 'Revisando la captura…' : 'Confirmar pago y activar mi cuenta'}
@@ -90,6 +95,25 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
 }
 
 const soloDigitos = (t: string) => t.replace(/\D/g, '')
+
+/** Soporte por WhatsApp: 0424-2349786 */
+const WHATSAPP = '584242349786'
+
+export function Soporte({ mensaje }: { mensaje: string }) {
+  return (
+    <a
+      class="boton boton--whatsapp"
+      href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(mensaje)}`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+        <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z" />
+      </svg>
+      Escribir a soporte por WhatsApp
+    </a>
+  )
+}
 
 /** Un dato del Pago Móvil con su botón para copiarlo (el teléfono y la cédula
  *  sin guiones ni letras; el monto sin «Bs.» ni puntos de miles: 8038,96). */
@@ -140,7 +164,32 @@ export function AvisoPago({ s }: { s: Suscripcion }) {
   const clave = `aviso-pago-${hoy}`
   const toca = s.activo && !s.es_admin && d !== null && DIAS_AVISO.includes(d) && !localStorage.getItem(clave)
   const [abierto, setAbierto] = useState(toca)
+  const claveRevision = `aviso-revision-${hoy}`
+  const [revision, setRevision] = useState(!!s.en_revision && !localStorage.getItem(claveRevision))
   if (s.es_admin) return null
+
+  // El banco no confirmó el pago solo: se avisa (una vez al día) con el botón de soporte
+  if (s.en_revision && revision) {
+    const cerrar = () => {
+      localStorage.setItem(claveRevision, '1')
+      setRevision(false)
+    }
+    return (
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="revision-titulo">
+        <div class="modal__caja pago">
+          <button type="button" class="modal__cerrar" aria-label="Cerrar" onClick={cerrar}>✕</button>
+          <span class="pago__icono" aria-hidden="true">🔎</span>
+          <h2 id="revision-titulo">No encontramos tu pago en el banco</h2>
+          <p>
+            Tu cuenta sigue activa mientras lo revisamos a mano. Si quieres que lo resolvamos más rápido,
+            escríbenos por WhatsApp.
+          </p>
+          <Soporte mensaje="Hola, hice un Pago Móvil en Cuentos de valor y no se validó automáticamente. ¿Me ayudan a revisarlo?" />
+          <button type="button" class="pago__salir boton-texto" onClick={cerrar}>Entendido</button>
+        </div>
+      </div>
+    )
+  }
   // Sin mes activo (fuera del chat, donde la ventana no se puede cerrar)
   if (!s.activo) {
     return (

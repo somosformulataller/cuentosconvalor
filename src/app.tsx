@@ -10,6 +10,7 @@ import { Chat } from './screens/Chat'
 import { Libro } from './screens/Libro'
 import { Cuentos } from './screens/Cuentos'
 import { Admin } from './screens/Admin'
+import { Landing } from './screens/Landing'
 
 export function App() {
   const ruta = useRuta()
@@ -26,6 +27,8 @@ export function App() {
       .finally(() => setListo(true))
   }, [])
 
+  // La página de la publicidad se ve sin esperar la sesión
+  if (ruta === '/inicio') return <Landing />
   if (!listo) return <Cargando />
 
   if (!usuario) {

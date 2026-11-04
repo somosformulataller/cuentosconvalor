@@ -13,6 +13,8 @@ export interface Suscripcion {
   fecha_tasa: string | null
   datos: { banco: string; telefono: string; cedula: string }
   verificando: boolean
+  /** Un pago que el banco no confirmó solo y revisa una persona */
+  en_revision?: boolean
 }
 export interface Cuento {
   id: number
