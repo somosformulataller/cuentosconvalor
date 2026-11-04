@@ -118,6 +118,10 @@ export function Chat({ id }: { id: number }) {
 
   return (
     <>
+      {/* Fuera de la cabecera: su backdrop-filter recortaría la ventana de pago */}
+      {s && <AvisoPago s={s} />}
+      {s && !s.activo && <PagoModal s={s} />}
+
       {/* La barra y los pasos quedan fijos arriba al bajar por el chat */}
       <div class="cabecera">
       <header class="barra">
@@ -131,8 +135,6 @@ export function Chat({ id }: { id: number }) {
         <Menu alNuevo={nuevo} />
       </header>
 
-      {s && <AvisoPago s={s} />}
-      {s && !s.activo && <PagoModal s={s} />}
 
       <nav class="pasos" aria-label="Cómo va tu cuento">
         {PASOS.map((p, i) => (

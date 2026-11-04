@@ -89,7 +89,7 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
   )
 }
 
-const soloDigitos = (t: string) => t.replace(/D/g, '')
+const soloDigitos = (t: string) => t.replace(/\D/g, '')
 
 /** Un dato del Pago Móvil con su botón para copiarlo (el teléfono y la cédula
  *  sin guiones ni letras; el monto sin «Bs.» ni puntos de miles: 8038,96). */
