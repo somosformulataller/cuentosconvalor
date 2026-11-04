@@ -1,6 +1,6 @@
 // Registro, entrada y sesión por cookie (HttpOnly, 30 días).
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
-import { sql } from './db.mjs'
+import { db, q } from './db.mjs'
 
 const COOKIE = 'cv_sesion'
 const DIAS = 30
@@ -20,24 +20,29 @@ export function claveCorrecta(clave, guardada) {
 
 export async function abrirSesion(res, usuarioId) {
   const token = randomBytes(32).toString('base64url')
-  const vence = new Date(Date.now() + DIAS * 864e5)
-  await sql`insert into sesiones (token, usuario_id, vence) values (${token}, ${usuarioId}, ${vence})`
+  const vence = new Date(Date.now() + DIAS * 864e5).toISOString()
+  await q(db().from('sesiones').insert({ token, usuario_id: usuarioId, vence }))
   res.setHeader('Set-Cookie', `${COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${DIAS * 86400}${SEGURA}`)
 }
 
 export async function cerrarSesion(req, res) {
   const token = leerCookie(req)
-  if (token) await sql`delete from sesiones where token = ${token}`
+  if (token) await q(db().from('sesiones').delete().eq('token', token))
   res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${SEGURA}`)
 }
 
 export async function usuarioDe(req) {
   const token = leerCookie(req)
   if (!token) return null
-  const [fila] = await sql`
-    select u.id, u.nombre, u.email from sesiones s join usuarios u on u.id = s.usuario_id
-    where s.token = ${token} and s.vence > now()`
-  return fila ?? null
+  const fila = await q(
+    db()
+      .from('sesiones')
+      .select('usuarios(id, nombre, email)')
+      .eq('token', token)
+      .gt('vence', new Date().toISOString())
+      .maybeSingle(),
+  )
+  return fila?.usuarios ?? null
 }
 
 function leerCookie(req) {

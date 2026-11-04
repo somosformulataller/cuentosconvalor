@@ -48,22 +48,23 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 
 ## Estado actual
 
-- Código en github.com/somosformulataller/cuentosconvalor (rama `main`).
-- **Hecho en local, sin subir todavía:** el paso a Supabase + Vercel y el cambio
-  de Claude a Gemini Flash.
+- Código en github.com/somosformulataller/cuentosconvalor (rama `main`). El
+  04-11 se subió el paso a Supabase + Vercel y a Gemini Flash; Supabase aplica
+  las migraciones al subir.
 - Probado el 04-11: Luna con Gemini Flash hace las preguntas (3–4 s) y escribe el
   capítulo 1 (23 s, 286 palabras, formato correcto). La voz de Gemini narró una
   prueba corta y la conversión a MP3 funciona (1,1 MB → 184 KB).
-- **Falta probar contra la base:** faltan `DATABASE_URL` y `SUPABASE_SECRET_KEY`.
+- La app usa solo la clave secreta de Supabase (sin contraseña de la base).
+- **Falta probar contra la base:** falta `SUPABASE_SECRET_KEY`.
 - El `.env` local usa por ahora la clave de Gemini de Formula Taller (el gasto se
   carga a ese proyecto de Google).
 
 ## Pendientes y decisiones abiertas
 
-1. Poner `DATABASE_URL` y `SUPABASE_SECRET_KEY` en el `.env`, aplicar la
-   migración, probar un cuento completo con voz en local y subir.
-2. Cargar las variables en Vercel: `DATABASE_URL`, `SUPABASE_URL`,
-   `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY`.
+1. Poner `SUPABASE_SECRET_KEY` en el `.env`, confirmar que Supabase aplicó las
+   migraciones, probar un cuento completo con voz en local y subir.
+2. Cargar las variables en Vercel: `SUPABASE_URL`, `SUPABASE_SECRET_KEY` y
+   `GEMINI_API_KEY`.
 3. Crear una clave de Gemini propia para Cuentos de valor, de pago.
 4. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
 5. Dominio propio.

@@ -4,7 +4,7 @@
 // - Si no, con OPENAI_API_KEY narra OpenAI TTS (MP3).
 // - Sin ninguna, la app usa la voz del propio teléfono.
 import { Mp3Encoder } from '@breezystack/lamejs'
-import { sql } from './db.mjs'
+import { db, q } from './db.mjs'
 
 const proveedor = () => (process.env.GEMINI_API_KEY ? 'gemini' : process.env.OPENAI_API_KEY ? 'openai' : null)
 export const hayVoz = () => !!proveedor() && !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SECRET_KEY
@@ -38,33 +38,19 @@ export async function audioDe(cuentoId, cap) {
 async function preparar(cuentoId, cap, ruta) {
   const texto = `Capítulo ${cap.numero}. ${cap.titulo}.\n\n${cap.texto}`
   const mp3 = proveedor() === 'gemini' ? aMp3(await conGemini(texto)) : await conOpenAI(texto)
-  await storage(`/object/${BUCKET}/${ruta}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'audio/mpeg', 'x-upsert': 'true', 'Cache-Control': '31536000' },
-    body: mp3,
-  })
-  await sql`update capitulos set audio = ${ruta}, audio_version = ${cap.version}
-            where cuento_id = ${cuentoId} and numero = ${cap.numero} and version = ${cap.version}`
+  await q(db().storage.from(BUCKET).upload(ruta, mp3, { contentType: 'audio/mpeg', upsert: true, cacheControl: '31536000' }))
+  // Solo si el texto no cambió mientras se narraba
+  await q(
+    db()
+      .from('capitulos')
+      .update({ audio: ruta, audio_version: cap.version })
+      .match({ cuento_id: cuentoId, numero: cap.numero, version: cap.version }),
+  )
 }
 
 async function firmar(ruta) {
-  const r = await storage(`/object/sign/${BUCKET}/${ruta}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expiresIn: 86400 }),
-  })
-  const { signedURL } = await r.json()
-  return `${process.env.SUPABASE_URL}/storage/v1${signedURL}`
-}
-
-async function storage(camino, init) {
-  const clave = process.env.SUPABASE_SECRET_KEY
-  const res = await fetch(`${process.env.SUPABASE_URL}/storage/v1${camino}`, {
-    ...init,
-    headers: { ...init.headers, apikey: clave, Authorization: `Bearer ${clave}` },
-  })
-  if (!res.ok) throw new Error(`storage ${res.status}: ${(await res.text()).slice(0, 200)}`)
-  return res
+  const { signedUrl } = await q(db().storage.from(BUCKET).createSignedUrl(ruta, 86400))
+  return signedUrl
 }
 
 async function conGemini(texto) {

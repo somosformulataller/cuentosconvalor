@@ -20,7 +20,7 @@ npm run dev             # http://127.0.0.1:5230
 ```
 
 - **La base y los audios** están en Supabase (proyecto `guluzhoumokowgepgarm`):
-  hacen falta `DATABASE_URL`, `SUPABASE_URL` y `SUPABASE_SECRET_KEY`. En local
+  hacen falta `SUPABASE_URL` y `SUPABASE_SECRET_KEY`. En local
   se usa la misma base que en producción.
 - **Sin `GEMINI_API_KEY`** corre en *modo demostración*: un cuento de ejemplo
   con el nombre y los personajes que escribas, y la voz del propio teléfono.
@@ -48,7 +48,7 @@ server/
   luna.mjs          el prompt de Luna y la llamada a Gemini (Interactions API, store false)
   demo.mjs          el modo demostración
   voz.mjs           la narración con Gemini TTS (u OpenAI), MP3 en Supabase Storage
-  db.mjs            Postgres de Supabase (paquete postgres, pooler en modo transacción)
+  db.mjs            el cliente de Supabase con la clave secreta (supabase-js)
   auth.mjs          contraseñas con scrypt y sesión por cookie HttpOnly
   prod.mjs          servidor propio de producción (fuera de Vercel)
 api/index.mjs       la API como función de Vercel
