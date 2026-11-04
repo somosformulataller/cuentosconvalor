@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
 import { api, type Suscripcion } from '../lib/api'
+import { eventoFbCada24h } from '../lib/fbpixel'
 import { formatoBs, reducirImagen, suscripcion } from '../lib/suscripcion'
 
 /**
@@ -16,6 +17,7 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
 
   async function confirmar() {
     if (!archivo || enviando) return
+    eventoFbCada24h('pagoUnCuento', { value: s.precio_usd, currency: 'USD' })
     setEnviando(true)
     setError('')
     try {
