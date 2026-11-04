@@ -94,16 +94,17 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 
 ## Pendientes y decisiones abiertas
 
-0. **Pagos:** crear en cron-job.org un job cada minuto a
-   `https://cuentosconvalor.vercel.app/api/cron/pagos?key=<CRON_SECRET>` y probar
-   con un pago real (el OCR no se ha probado con una captura real en Cuentos).
+0. **Pagos:** probar con un pago real (el OCR no se ha probado con una captura
+   real en Cuentos). El cron ya está en cron-job.org (04-11, cada minuto, 200 OK)
+   a `https://www.cuentosdevalor.com/api/cron/pagos?key=<CRON_SECRET>`.
 
 1. El audio de un capítulo tarda ~40 s en narrarse. Se prepara solo al terminar
    de escribirse (probado: 50 s después ya está, sale en 1,7 s); si se pide antes,
    espera esa misma narración (reserva en la base, sin pagar dos veces).
 3. Crear una clave de Gemini propia para Cuentos de valor, de pago.
 4. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
-5. Dominio propio.
+5. ~~Dominio propio~~: listo, **https://www.cuentosdevalor.com** (sin www
+   redirige con 308).
 6. Antes de abrirla al público: límite de cuentos por cuenta (cada uno cuesta),
    copias de seguridad de la base, política de privacidad (son datos de niños)
    y recuperar contraseña (hoy no existe).
