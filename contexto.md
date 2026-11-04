@@ -59,16 +59,16 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   variables cargadas en Vercel (las claves como Sensitive). Probado ahí: entrar,
   chat en vivo, capítulo 1 en 17 s y su audio MP3.
 - **Migraciones:** la integración de Supabase con GitHub no quedó conectada; las
-  migraciones las corre la usuaria en el SQL Editor (las 2 de hoy ya corridas).
+  migraciones las corre la usuaria en el SQL Editor (las 3 del 04-11 ya corridas).
 - Usuario de prueba: `prueba@cuentosdevalor.app` (la clave la tiene la usuaria).
 - El `.env` local usa por ahora la clave de Gemini de Formula Taller (el gasto se
   carga a ese proyecto de Google).
 
 ## Pendientes y decisiones abiertas
 
-1. Al borrar un cuento, sus audios quedan en el bucket: falta borrarlos.
-2. El primer audio de un capítulo puede tardar ~40 s si se pide justo al
-   terminar de escribirlo (la narración en segundo plano aún no acabó).
+1. El audio de un capítulo tarda ~40 s en narrarse. Se prepara solo al terminar
+   de escribirse (probado: 50 s después ya está, sale en 1,7 s); si se pide antes,
+   espera esa misma narración (reserva en la base, sin pagar dos veces).
 3. Crear una clave de Gemini propia para Cuentos de valor, de pago.
 4. Confirmar el nombre **Luna**: lo elegí yo y la usuaria no lo ha confirmado.
 5. Dominio propio.
