@@ -119,7 +119,6 @@ const rutas = [
       }
       const nuevo = await q(db().from('cuentos').insert({ usuario_id: u.id }).select('id').single())
       await q(db().from('mensajes').insert({ cuento_id: nuevo.id, rol: 'assistant', texto: saludo(u.nombre.split(' ')[0]) }))
-      await evento(u.id, 'cuento_nuevo', { cuento: nuevo.id })
       json(res, 200, { id: nuevo.id })
     },
   ],
@@ -191,6 +190,9 @@ async function conversar(req, res, u, [id]) {
   const historia = await q(db().from('mensajes').select('rol, texto').eq('cuento_id', cuento.id).order('id'))
   const respuestas = historia.filter((m) => m.rol === 'user').length
   const capitulos = (await capitulosDe(cuento.id)).length
+  // «Empezó un cuento» cuenta desde su primera respuesta a Luna (ya con el pago activo),
+  // no cuando la app abre el chat vacío con el saludo
+  if (respuestas === 1) waitUntil(evento(u.id, 'cuento_nuevo', { cuento: cuento.id }))
   waitUntil(evento(u.id, 'mensaje', { cuento: cuento.id, respuesta: respuestas }))
 
   res.statusCode = 200
