@@ -28,9 +28,10 @@ export function Menu({ alNuevo }: { alNuevo?: () => void }) {
       </button>
       {abierto && (
         <div class="menu__lista" role="menu">
-          <a href="/cuentos" role="menuitem" onClick={() => setAbierto(false)}>📚 Mis cuentos</a>
-          {usuario?.es_admin && (
+          {usuario?.es_admin ? (
             <a href="/admin" role="menuitem" onClick={() => setAbierto(false)}>🛠️ Superadmin</a>
+          ) : (
+            <a href="/cuentos" role="menuitem" onClick={() => setAbierto(false)}>📚 Mis cuentos</a>
           )}
           <DescargarApp compacto />
           <button

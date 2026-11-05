@@ -252,6 +252,8 @@ export async function api(req, res, next) {
       const publica = /^\/api\/(config|yo|registro|entrar|salir|cron\/pagos)$/.test(url.pathname)
       const u = /^\/api\/(config|cron\/pagos)$/.test(url.pathname) ? null : await usuarioDe(req)
       if (!publica && !u) return json(res, 401, { error: 'Inicia sesión para seguir.' })
+      // El superadmin solo gestiona la app: no crea ni abre cuentos
+      if (u?.es_admin && url.pathname.startsWith('/api/cuentos')) return json(res, 403, { error: 'El superadmin no crea cuentos.' })
       return await manejar(req, res, u, m.slice(1))
     }
     json(res, 404, { error: 'No existe.' })

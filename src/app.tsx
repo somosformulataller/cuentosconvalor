@@ -36,6 +36,12 @@ export function App() {
     return <Entrar />
   }
 
+  // El superadmin solo ve la gestión de la app: no crea cuentos
+  if (usuario.es_admin) {
+    if (ruta !== '/admin') setTimeout(() => ir('/admin', true))
+    return <Admin />
+  }
+
   // Direcciones viejas con el número (/cuento/13, /cuento/13/libro): se limpian
   const vieja = ruta.match(/^\/cuento\/(\d+)(\/libro)?$/)
   if (vieja) {
@@ -47,7 +53,6 @@ export function App() {
   if (ruta === '/libro' && id) return <Libro key={id} id={id} />
   if (ruta === '/cuento' && id) return <Chat key={id} id={id} />
   if (ruta === '/cuentos') return <Cuentos />
-  if (ruta === '/admin' && usuario.es_admin) return <Admin />
   return <Inicio usuario={usuario} />
 }
 
