@@ -2,6 +2,28 @@ import { useState } from 'preact/hooks'
 import { api, type Suscripcion } from '../lib/api'
 import { eventoFbCada24h } from '../lib/fbpixel'
 import { formatoBs, reducirImagen, suscripcion } from '../lib/suscripcion'
+import { detener } from '../lib/narrar'
+import { ir, olvidarCuento } from '../lib/router'
+import { sesion } from '../lib/sesion'
+
+/** «Cerrar sesión» dentro de las ventanas de pago y de soporte. */
+function CerrarSesion() {
+  return (
+    <button
+      type="button"
+      class="pago__salir boton-texto"
+      onClick={async () => {
+        detener()
+        await api.salir().catch(() => {})
+        olvidarCuento()
+        ir('/', true)
+        sesion.set(null)
+      }}
+    >
+      Cerrar sesión
+    </button>
+  )
+}
 
 /**
  * «Confirma tu pago»: Pago Móvil de la mensualidad. La mamá o el papá sube la
@@ -89,6 +111,7 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
         {!alCerrar && s.dias_restantes !== null && (
           <a href="/cuentos" class="pago__salir">Ver mis cuentos</a>
         )}
+        <CerrarSesion />
       </div>
     </div>
   )
@@ -153,7 +176,7 @@ function Dato({ nombre, valor, copiar }: { nombre: string; valor: string; copiar
 }
 
 /** Pago rechazado: no se puede cerrar; se quita solo cuando soporte lo aprueba. */
-export function PagoRechazado({ email, alSalir }: { email: string; alSalir: () => void }) {
+export function PagoRechazado({ email }: { email: string }) {
   return (
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rechazado-titulo">
       <div class="modal__caja pago">
@@ -164,7 +187,7 @@ export function PagoRechazado({ email, alSalir }: { email: string; alSalir: () =
           lo aprobemos, podrás seguir creando tus cuentos.
         </p>
         <Soporte mensaje={`Hola, mi Pago Móvil en Cuentos de valor fue rechazado (mi correo es ${email}). ¿Me ayudan a revisarlo?`} />
-        <button type="button" class="pago__salir boton-texto" onClick={alSalir}>Cerrar sesión</button>
+        <CerrarSesion />
       </div>
     </div>
   )
@@ -204,6 +227,7 @@ export function AvisoPago({ s }: { s: Suscripcion }) {
           </p>
           <Soporte mensaje="Hola, hice un Pago Móvil en Cuentos de valor y no se validó automáticamente. ¿Me ayudan a revisarlo?" />
           <button type="button" class="pago__salir boton-texto" onClick={cerrar}>Entendido</button>
+          <CerrarSesion />
         </div>
       </div>
     )

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, type Usuario } from './lib/api'
 import { usarVozDelServidor } from './lib/narrar'
-import { abrirCuento, cuentoActual, ir, olvidarCuento, useRuta } from './lib/router'
+import { abrirCuento, cuentoActual, ir, useRuta } from './lib/router'
 import { sesion } from './lib/sesion'
 import { cargarSuscripcion, suscripcion } from './lib/suscripcion'
 import { PagoRechazado } from './ui/PagoModal'
@@ -68,15 +68,7 @@ export function App() {
   if (revisado !== usuario.id) return <Cargando />
   if (s?.rechazado)
     return (
-      <PagoRechazado
-        email={usuario.email}
-        alSalir={async () => {
-          await api.salir().catch(() => {})
-          olvidarCuento()
-          ir('/', true)
-          sesion.set(null)
-        }}
-      />
+      <PagoRechazado email={usuario.email} />
     )
 
   // Direcciones viejas con el número (/cuento/13, /cuento/13/libro): se limpian
