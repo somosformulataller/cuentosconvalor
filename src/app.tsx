@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, type Usuario } from './lib/api'
 import { usarVozDelServidor } from './lib/narrar'
-import { abrirCuento, cuentoActual, ir, useRuta } from './lib/router'
+import { abrirCuento, cuentoActual, ir, olvidarCuento, useRuta } from './lib/router'
 import { sesion } from './lib/sesion'
+import { cargarSuscripcion, suscripcion } from './lib/suscripcion'
+import { PagoRechazado } from './ui/PagoModal'
 import { Cargando } from './ui/Cargando'
 import { Entrar } from './screens/Entrar'
 import { Registro } from './screens/Registro'
@@ -27,6 +29,26 @@ export function App() {
       .finally(() => setListo(true))
   }, [])
 
+  // El estado del pago se revisa al entrar; si fue rechazado, cada 30 s y al
+  // volver a la app, para quitar el aviso en cuanto soporte lo apruebe
+  const s = suscripcion.use()
+  const [revisado, setRevisado] = useState<number | null>(null)
+  const uid = usuario && !usuario.es_admin ? usuario.id : null
+  useEffect(() => {
+    if (!uid) return
+    cargarSuscripcion().finally(() => setRevisado(uid))
+  }, [uid])
+  useEffect(() => {
+    if (!uid || !s?.rechazado) return
+    const revisar = () => document.visibilityState === 'visible' && cargarSuscripcion()
+    const reloj = setInterval(revisar, 30_000)
+    document.addEventListener('visibilitychange', revisar)
+    return () => {
+      clearInterval(reloj)
+      document.removeEventListener('visibilitychange', revisar)
+    }
+  }, [uid, s?.rechazado])
+
   // La página de la publicidad se ve sin esperar la sesión
   if (ruta === '/inicio') return <Landing />
   if (!listo) return <Cargando />
@@ -41,6 +63,21 @@ export function App() {
     if (ruta !== '/admin') setTimeout(() => ir('/admin', true))
     return <Admin />
   }
+
+  // Pago rechazado: solo el aviso de soporte, hasta que se apruebe
+  if (revisado !== usuario.id) return <Cargando />
+  if (s?.rechazado)
+    return (
+      <PagoRechazado
+        email={usuario.email}
+        alSalir={async () => {
+          await api.salir().catch(() => {})
+          olvidarCuento()
+          ir('/', true)
+          sesion.set(null)
+        }}
+      />
+    )
 
   // Direcciones viejas con el número (/cuento/13, /cuento/13/libro): se limpian
   const vieja = ruta.match(/^\/cuento\/(\d+)(\/libro)?$/)

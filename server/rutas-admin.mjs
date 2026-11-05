@@ -99,6 +99,22 @@ export const rutasAdmin = [
         return json(res, 200, { ok: true, resultado: r })
       }
       if (accion !== 'aprobar' && accion !== 'rechazar') return json(res, 400, { error: 'Acción desconocida.' })
+
+      // Rechazado que soporte revisó y sí era bueno: se aprueba y vuelve a tener sus días
+      if (accion === 'aprobar' && pago.estado === 'rechazado') {
+        const nota = [pago.nota, 'Aprobado a mano después de rechazado.'].filter(Boolean).join(' ')
+        const cambiado = await q(
+          db().from('pagos')
+            .update({ estado: 'aprobado', origen: 'manual', revisado_por: u.id, revisado_en: new Date().toISOString(), nota })
+            .eq('id', id).eq('estado', 'rechazado').select('id'),
+        )
+        if (!cambiado.length) return json(res, 409, { error: 'Ese pago ya cambió. Recarga la lista.' })
+        const dueno = await q(db().from('usuarios').select('pagado_hasta').eq('id', pago.usuario_id).single())
+        const base = Math.max(Date.now(), dueno.pagado_hasta ? Date.parse(dueno.pagado_hasta) : 0)
+        await q(db().from('usuarios').update({ pagado_hasta: new Date(base + (pago.dias ?? 30) * 864e5).toISOString() }).eq('id', pago.usuario_id))
+        await evento(pago.usuario_id, 'pago_aprobado', { pago: id, origen: 'manual', nota })
+        return json(res, 200, { ok: true })
+      }
       if (pago.estado !== 'verificando') return json(res, 409, { error: 'Ese pago ya se decidió.' })
       if (accion === 'rechazar' && !nota.trim()) return json(res, 400, { error: 'Escribe por qué se rechaza.' })
 

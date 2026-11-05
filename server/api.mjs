@@ -10,7 +10,7 @@ import { evento, visita } from './eventos.mjs'
 import { cuerpo, json } from './http.mjs'
 import { rutasAdmin } from './rutas-admin.mjs'
 import { rutasPagos } from './rutas-pagos.mjs'
-import { activo } from './suscripcion.mjs'
+import { activo, pagoRechazado } from './suscripcion.mjs'
 import { leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
 
 /** Sin mensualidad al día no se crean ni se escriben cuentos (leer y escuchar, sí). */
@@ -254,6 +254,9 @@ export async function api(req, res, next) {
       if (!publica && !u) return json(res, 401, { error: 'Inicia sesión para seguir.' })
       // El superadmin solo gestiona la app: no crea ni abre cuentos
       if (u?.es_admin && url.pathname.startsWith('/api/cuentos')) return json(res, 403, { error: 'El superadmin no crea cuentos.' })
+      // Pago rechazado: sin cuentos hasta que soporte lo apruebe
+      if (u && !u.es_admin && url.pathname.startsWith('/api/cuentos') && (await pagoRechazado(u.id)))
+        return json(res, 403, { error: 'Tu pago fue rechazado. Escríbenos por WhatsApp a soporte.', rechazado: true })
       return await manejar(req, res, u, m.slice(1))
     }
     json(res, 404, { error: 'No existe.' })

@@ -152,6 +152,24 @@ function Dato({ nombre, valor, copiar }: { nombre: string; valor: string; copiar
   )
 }
 
+/** Pago rechazado: no se puede cerrar; se quita solo cuando soporte lo aprueba. */
+export function PagoRechazado({ email, alSalir }: { email: string; alSalir: () => void }) {
+  return (
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rechazado-titulo">
+      <div class="modal__caja pago">
+        <span class="pago__icono" aria-hidden="true">⚠️</span>
+        <h2 id="rechazado-titulo">Tu pago no fue aprobado</h2>
+        <p>
+          No pudimos confirmar tu Pago Móvil. Escríbenos por WhatsApp a soporte y lo revisamos contigo. Cuando
+          lo aprobemos, podrás seguir creando tus cuentos.
+        </p>
+        <Soporte mensaje={`Hola, mi Pago Móvil en Cuentos de valor fue rechazado (mi correo es ${email}). ¿Me ayudan a revisarlo?`} />
+        <button type="button" class="pago__salir boton-texto" onClick={alSalir}>Cerrar sesión</button>
+      </div>
+    </div>
+  )
+}
+
 const DIAS_AVISO = [7, 3, 0]
 
 /**

@@ -220,6 +220,13 @@ function Pagos() {
                     </button>
                   </div>
                 )}
+                {p.estado === 'rechazado' && (
+                  <div class="admin__acciones">
+                    <button type="button" class="boton boton--principal boton--chico" disabled={!!ocupado} onClick={() => decidir(p, 'aprobar')}>
+                      Aprobar
+                    </button>
+                  </div>
+                )}
               </div>
             </li>
           ))}

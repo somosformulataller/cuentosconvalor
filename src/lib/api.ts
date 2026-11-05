@@ -3,6 +3,8 @@
 export interface Usuario { id: number; nombre: string; email: string; es_admin?: boolean; pagado_hasta?: string | null }
 export interface Suscripcion {
   activo: boolean
+  /** Su último pago fue rechazado: solo ve el aviso de soporte hasta que se apruebe */
+  rechazado?: boolean
   es_admin: boolean
   pagado_hasta: string | null
   /** 0 = vence hoy; negativo = vencida; null = nunca pagó */
