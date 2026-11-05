@@ -131,7 +131,8 @@ const rutas = [
       if (!cuento) return json(res, 404, { error: 'No encontramos ese cuento.' })
       const mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
       const vista = new URL(req.url, 'http://x').searchParams.get('vista')
-      waitUntil(evento(u.id, vista === 'libro' ? 'abrio_libro' : 'abrio_chat', { cuento: cuento.id }))
+      // «Abrió el chat» solo cuenta con el pago activo (sin pagar no puede escribirle a Luna)
+      if (vista === 'libro' || activo(u)) waitUntil(evento(u.id, vista === 'libro' ? 'abrio_libro' : 'abrio_chat', { cuento: cuento.id }))
       json(res, 200, { cuento, mensajes, capitulos: await capitulosDe(cuento.id) })
     },
   ],
