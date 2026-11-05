@@ -67,6 +67,21 @@ export const rutasAdmin = [
 
   [
     'GET',
+    /^\/api\/admin\/embudo$/,
+    soloAdmin(async (req, res) => {
+      const dias = Number(new URL(req.url, 'http://x').searchParams.get('dias')) || 0
+      const { data, error } = await db().rpc('embudo', { p_desde: dias > 0 ? hace(dias * 864e5) : null })
+      if (error) {
+        console.error('[embudo]', error)
+        const falta = /embudo|visitas/.test(error.message ?? '') && /(not find|does not exist)/.test(error.message ?? '')
+        return json(res, 500, { error: falta ? 'Falta correr la migración del embudo en Supabase.' : 'No se pudo calcular el embudo.' })
+      }
+      json(res, 200, data)
+    }),
+  ],
+
+  [
+    'GET',
     /^\/api\/admin\/pagos$/,
     soloAdmin(async (req, res) => {
       const filtro = new URL(req.url, 'http://x').searchParams.get('filtro') ?? 'revisar'

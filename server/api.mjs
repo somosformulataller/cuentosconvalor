@@ -86,6 +86,23 @@ const rutas = [
   ],
 
   [
+    'POST',
+    /^\/api\/visita$/,
+    async (req, res) => {
+      // Para el embudo: la landing y el registro, una vez por navegador. Nunca falla hacia el usuario.
+      try {
+        const { pagina, visitante } = await cuerpo(req)
+        if (['inicio', 'registro'].includes(pagina) && typeof visitante === 'string' && /^[\w-]{8,64}$/.test(visitante)) {
+          await db().from('visitas').upsert({ pagina, visitante }, { onConflict: 'pagina,visitante', ignoreDuplicates: true })
+        }
+      } catch (err) {
+        console.error('[visita]', err)
+      }
+      json(res, 200, { ok: true })
+    },
+  ],
+
+  [
     'GET',
     /^\/api\/cuentos$/,
     async (req, res, u) => {
@@ -252,8 +269,8 @@ export async function api(req, res, next) {
       const m = url.pathname.match(patron)
       if (!m || req.method !== metodo) continue
       // El cron trae su propia clave (CRON_SECRET)
-      const publica = /^\/api\/(config|yo|registro|entrar|salir|cron\/pagos)$/.test(url.pathname)
-      const u = /^\/api\/(config|cron\/pagos)$/.test(url.pathname) ? null : await usuarioDe(req)
+      const publica = /^\/api\/(config|yo|registro|entrar|salir|visita|cron\/pagos)$/.test(url.pathname)
+      const u = /^\/api\/(config|visita|cron\/pagos)$/.test(url.pathname) ? null : await usuarioDe(req)
       if (!publica && !u) return json(res, 401, { error: 'Inicia sesión para seguir.' })
       // El superadmin solo gestiona la app: no crea ni abre cuentos
       if (u?.es_admin && url.pathname.startsWith('/api/cuentos')) return json(res, 403, { error: 'El superadmin no crea cuentos.' })

@@ -47,6 +47,24 @@ async function pedir<T>(metodo: string, ruta: string, datos?: unknown): Promise<
   return cuerpo as T
 }
 
+/** Para el embudo: cuenta la visita a la landing o al registro (una vez por navegador). */
+export function contarVisita(pagina: 'inicio' | 'registro') {
+  try {
+    const clave = `visita-${pagina}`
+    if (localStorage.getItem(clave)) return
+    let id = localStorage.getItem('visitante')
+    if (!id) {
+      id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      localStorage.setItem('visitante', id)
+    }
+    pedir('POST', '/visita', { pagina, visitante: id })
+      .then(() => localStorage.setItem(clave, '1'))
+      .catch(() => {})
+  } catch {
+    // Sin localStorage (modo privado estricto): no se cuenta
+  }
+}
+
 export const api = {
   config: () => pedir<Config>('GET', '/config'),
   yo: () => pedir<{ usuario: Usuario | null }>('GET', '/yo'),
@@ -64,6 +82,7 @@ export const api = {
   pagar: (imagen: string, nombre: string) => pedir<{ ok: true; suscripcion: Suscripcion }>('POST', '/pagos', { imagen, nombre }),
   admin: {
     resumen: () => pedir<AdminResumen>('GET', '/admin/resumen'),
+    embudo: (dias: number) => pedir<AdminEmbudo>('GET', `/admin/embudo?dias=${dias}`),
     pagos: (filtro: string) => pedir<{ pagos: AdminPago[] }>('GET', `/admin/pagos?filtro=${filtro}`),
     decidir: (id: string, accion: 'aprobar' | 'rechazar' | 'revalidar', nota = '') =>
       pedir<{ ok: true }>('POST', `/admin/pagos/${id}`, { accion, nota }),
@@ -71,6 +90,22 @@ export const api = {
     usuarios: () => pedir<{ usuarios: AdminUsuario[] }>('GET', '/admin/usuarios'),
     usuario: (id: number) => pedir<AdminDetalle>('GET', `/admin/usuarios/${id}`),
   },
+}
+
+export interface AdminEmbudo {
+  landing: number
+  pagina_registro: number
+  registrados: number
+  capturas: number
+  pagaron: number
+  dias_1: number
+  dias_2: number
+  dias_3: number
+  dias_10: number
+  ventas: number
+  ventas_usd: number
+  /** Desde cuándo se cuentan las visitas (null = aún ninguna) */
+  visitas_desde: string | null
 }
 
 export interface AdminResumen {

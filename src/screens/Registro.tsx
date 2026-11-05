@@ -1,5 +1,5 @@
-import { useState } from 'preact/hooks'
-import { api } from '../lib/api'
+import { useEffect, useState } from 'preact/hooks'
+import { api, contarVisita } from '../lib/api'
 import { ir } from '../lib/router'
 import { sesion } from '../lib/sesion'
 import { Portada } from './Entrar'
@@ -11,6 +11,7 @@ export function Registro() {
   const [clave2, setClave2] = useState('')
   const [error, setError] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  useEffect(() => contarVisita('registro'), [])
 
   async function enviar(e: Event) {
     e.preventDefault()

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api, type Actividad, type AdminDetalle, type AdminPago, type AdminResumen, type AdminUsuario, type Movimiento } from '../lib/api'
+import { api, type Actividad, type AdminDetalle, type AdminEmbudo, type AdminPago, type AdminResumen, type AdminUsuario, type Movimiento } from '../lib/api'
 import { formatoBs } from '../lib/suscripcion'
 import { Logo } from '../ui/Logo'
 import { Menu } from '../ui/Menu'
@@ -10,10 +10,11 @@ import { Menu } from '../ui/Menu'
    el banco los confirma; aquí llegan los que necesitan a una persona.
    ─────────────────────────────────────────────────────────────────────────── */
 
-type Pestana = 'resumen' | 'pagos' | 'banco' | 'usuarios'
+type Pestana = 'resumen' | 'embudo' | 'pagos' | 'banco' | 'usuarios'
 
 const PESTANAS: [Pestana, string][] = [
   ['resumen', '📊 Resumen'],
+  ['embudo', '📉 Embudo'],
   ['pagos', '💳 Pagos'],
   ['banco', '🏦 Banco'],
   ['usuarios', '👥 Usuarios'],
@@ -78,6 +79,7 @@ export function Admin() {
       </nav>
       <main class="admin">
         {pestana === 'resumen' && <Resumen />}
+        {pestana === 'embudo' && <Embudo />}
         {pestana === 'pagos' && <Pagos />}
         {pestana === 'banco' && <Banco />}
         {pestana === 'usuarios' && <Usuarios />}
@@ -115,6 +117,84 @@ function Resumen() {
           <li>Última búsqueda en el banco: {fecha(v.ultima_busqueda)}</li>
         </ul>
       </section>
+    </>
+  )
+}
+
+const PERIODOS: [number, string][] = [
+  [7, '7 días'],
+  [30, '30 días'],
+  [0, 'Todo'],
+]
+
+/** Embudo: de la landing al pago, y cuántos días usan la app los que pagaron. */
+function Embudo() {
+  const [dias, setDias] = useState(30)
+  const [e, setE] = useState<AdminEmbudo | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    setE(null)
+    setError('')
+    api.admin.embudo(dias).then(setE).catch((x) => setError((x as Error).message))
+  }, [dias])
+
+  const pasos: [string, number][] = e
+    ? [
+        ['Visitaron la landing', e.landing],
+        ['Visitaron la página de registro', e.pagina_registro],
+        ['Se registraron', e.registrados],
+        ['Enviaron captura', e.capturas],
+        ['Pagaron con éxito', e.pagaron],
+        ['Usaron 1 día o más', e.dias_1],
+        ['Usaron 2 días o más', e.dias_2],
+        ['Usaron 3 días o más', e.dias_3],
+        ['Usaron 10 días o más', e.dias_10],
+      ]
+    : []
+  const maximo = Math.max(1, ...pasos.map(([, n]) => n))
+
+  return (
+    <>
+      <div class="admin__filtros">
+        {PERIODOS.map(([d, t]) => (
+          <button key={d} type="button" class={`chip${dias === d ? ' chip--fuerte' : ''}`} onClick={() => setDias(d)}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {error && <p class="aviso">{error}</p>}
+      {!e && !error && <p>Cargando…</p>}
+      {e && (
+        <>
+          <div class="admin__cifras">
+            <Cifra n={`${Number(e.ventas_usd).toFixed(0)}`} t={`Ventas (${e.ventas} ${e.ventas === 1 ? 'pago' : 'pagos'})`} />
+            <Cifra n={e.registrados ? `${Math.round((e.pagaron / e.registrados) * 100)}%` : '—'} t="De registrados a pagados" />
+          </div>
+          <section class="tarjeta admin__embudo">
+            <h3>Embudo</h3>
+            {pasos.map(([t, n], i) => {
+              const antes = i > 0 ? pasos[i - 1][1] : 0
+              return (
+                <div key={t} class="admin__embudo-fila">
+                  <span>{t}</span>
+                  <span class="admin__embudo-barra">
+                    <span style={{ width: `${(n / maximo) * 100}%` }} />
+                  </span>
+                  <span>
+                    <b>{n}</b>
+                    {i > 0 && <small> ({antes ? Math.round((n / antes) * 100) : 0}%)</small>}
+                  </span>
+                </div>
+              )
+            })}
+            <p class="admin__nota">
+              El % es sobre el paso anterior. Los usuarios son los que se registraron en el periodo; los días de uso
+              cuentan desde su primer pago aprobado.{' '}
+              {e.visitas_desde ? `Las visitas se cuentan desde el ${fecha(e.visitas_desde)}, una vez por navegador.` : 'Las visitas a la landing y al registro empiezan a contarse desde ahora.'}
+            </p>
+          </section>
+        </>
+      )}
     </>
   )
 }

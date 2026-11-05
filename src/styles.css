@@ -1271,6 +1271,47 @@ button {
   margin-top: 6px;
 }
 
+/* Embudo: una fila por paso, con su barra */
+.admin__embudo {
+  display: grid;
+  gap: 12px;
+}
+
+.admin__embudo-fila {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.2fr) 2fr minmax(72px, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.admin__embudo-fila > span:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin__embudo-fila small {
+  color: var(--tinta-2);
+}
+
+.admin__embudo-barra {
+  height: 14px;
+  border-radius: 999px;
+  background: var(--linea);
+  overflow: hidden;
+}
+
+.admin__embudo-barra span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lavanda-fuerte);
+}
+
+.admin__embudo .admin__nota {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
 .admin__usuario {
   display: flex;
   flex-wrap: wrap;

@@ -1,3 +1,5 @@
+import { useEffect } from 'preact/hooks'
+import { contarVisita } from '../lib/api'
 import { Luna } from '../ui/Luna'
 
 /**
@@ -5,6 +7,7 @@ import { Luna } from '../ui/Luna'
  * 3 minutos y el botón que lleva al registro. Se ve sin sesión.
  */
 export function Landing() {
+  useEffect(() => contarVisita('inicio'), [])
   return (
     <main class="landing">
       <header class="landing__marca">
