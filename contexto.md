@@ -80,8 +80,10 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   páginas). Evento personalizado **`pagoUnCuento`** (value 9, USD) al tocar
   «Confirmar pago y activar mi cuenta» (`src/lib/fbpixel.ts`, mismo esquema que
   La Mejor Llave): una vez cada 24 h por navegador (`localStorage`
-  `fb-evento:pagoUnCuento`) y se envía **antes** de revisar la captura, así que
-  mide intención de pago, no pagos aprobados. Sin CAPI.
+  `fb-evento:pagoUnCuento`). Desde el 06-11 se envía **solo cuando el servidor
+  guardó el pago** (ya sale en el superadmin); si la captura no se lee, está
+  repetida o falla la conexión, no se envía. Mide pagos enviados, no aprobados
+  por el banco. Sin CAPI.
   - En Meta hubo que agregar `cuentosdevalor.com` en **Permisos de tráfico** del
     pixel; sin eso Meta bloqueaba todo («unavailable on this website due to
     it's traffic permission settings»). Probado con Chrome automático: llegan

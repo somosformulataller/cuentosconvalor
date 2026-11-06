@@ -39,12 +39,13 @@ export function PagoModal({ s, alCerrar }: { s: Suscripcion; alCerrar?: () => vo
 
   async function confirmar() {
     if (!archivo || enviando) return
-    eventoFbCada24h('pagoUnCuento', { value: s.precio_usd, currency: 'USD' })
     setEnviando(true)
     setError('')
     try {
       const imagen = await reducirImagen(archivo)
       const r = await api.pagar(imagen, archivo.name)
+      // Meta: solo cuando el pago quedó guardado (ya aparece en el superadmin)
+      eventoFbCada24h('pagoUnCuento', { value: s.precio_usd, currency: 'USD' })
       suscripcion.set(r.suscripcion)
       alCerrar?.()
     } catch (e) {
