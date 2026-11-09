@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api, type Actividad, type AdminDetalle, type AdminEmbudo, type AdminPago, type AdminResumen, type AdminUsuario, type Movimiento } from '../lib/api'
+import { leerRespuesta } from '../../shared/formato.js'
+import { api, type Actividad, type AdminDetalle, type AdminEmbudo, type AdminPago, type AdminResumen, type AdminUsuario, type Cuento, type Mensaje, type Movimiento } from '../lib/api'
 import { formatoBs } from '../lib/suscripcion'
 import { Logo } from '../ui/Logo'
+import { Luna } from '../ui/Luna'
 import { Menu } from '../ui/Menu'
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -459,12 +461,97 @@ function Usuarios() {
   )
 }
 
+/** La conversación de un cuento con Luna, tal como la vio el usuario (solo lectura). */
+function Conversacion({ id, quien, alVolver }: { id: number; quien: string; alVolver: () => void }) {
+  const [d, setD] = useState<{ cuento: Cuento & { creado: string }; mensajes: Mensaje[] } | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    api.admin.conversacion(id).then(setD).catch((e) => setError((e as Error).message))
+    scrollTo({ top: 0 })
+  }, [id])
+  return (
+    <>
+      <button type="button" class="boton boton--suave boton--chico" onClick={alVolver}>← Volver a {quien || 'el usuario'}</button>
+      {error && <p class="aviso">{error}</p>}
+      {!d ? (
+        <p>Cargando…</p>
+      ) : (
+        <>
+          <section class="tarjeta">
+            <h3>
+              {d.cuento.prueba ? '🎁 ' : ''}#{d.cuento.id} {d.cuento.titulo ?? 'Cuento en preparación'}
+            </h3>
+            <p>
+              {d.cuento.prueba ? 'Cuento de prueba · ' : ''}
+              {d.cuento.para ? `Para ${d.cuento.para} · ` : ''}
+              {d.cuento.valores ? `${d.cuento.valores} · ` : ''}
+              {d.cuento.estado === 'listo' ? 'listo' : 'sin terminar'} · empezado el {fecha(d.cuento.creado)}
+            </p>
+          </section>
+          <ol class="chat__lista admin__conversacion">
+            {d.mensajes.map((m) =>
+              m.rol === 'user' ? (
+                <li key={m.id} class="msg msg--papa">
+                  <p class="burbuja">
+                    {m.texto}
+                    <time>{fecha(m.creado ?? null)}</time>
+                  </p>
+                </li>
+              ) : (
+                <MensajeLuna key={m.id} m={m} />
+              ),
+            )}
+            {d.mensajes.filter((m) => m.rol === 'user').length === 0 && <li class="admin__vacio">Todavía no le ha respondido a Luna.</li>}
+          </ol>
+        </>
+      )}
+    </>
+  )
+}
+
+function MensajeLuna({ m }: { m: Mensaje }) {
+  const r = leerRespuesta(m.texto)
+  return (
+    <>
+      {r.mensaje && (
+        <li class="msg msg--luna">
+          <Luna size={30} />
+          <p class="burbuja">
+            {r.mensaje}
+            <time>{fecha(m.creado ?? null)}</time>
+          </p>
+        </li>
+      )}
+      {r.capitulo && (
+        <li>
+          <details class="tarjeta admin__capitulo">
+            <summary>
+              📄 Capítulo {r.capitulo.numero}: {r.capitulo.titulo || 'sin título'} ({r.capitulo.texto.split(/\s+/).length} palabras)
+            </summary>
+            {r.capitulo.texto.split(/\n\s*\n/).map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </details>
+        </li>
+      )}
+      {r.pregunta && (
+        <li class="msg msg--luna">
+          <Luna size={30} />
+          <p class="burbuja">{r.pregunta}</p>
+        </li>
+      )}
+    </>
+  )
+}
+
 function DetalleUsuario({ id, alVolver }: { id: number; alVolver: () => void }) {
   const [d, setD] = useState<AdminDetalle | null>(null)
   const [error, setError] = useState('')
+  const [conversacion, setConversacion] = useState<number | null>(null)
   useEffect(() => {
     api.admin.usuario(id).then(setD).catch((e) => setError((e as Error).message))
   }, [id])
+  if (conversacion !== null) return <Conversacion id={conversacion} quien={d?.usuario.nombre ?? ''} alVolver={() => setConversacion(null)} />
   return (
     <>
       <button type="button" class="boton boton--suave boton--chico" onClick={alVolver}>← Todos los usuarios</button>
@@ -489,8 +576,13 @@ function DetalleUsuario({ id, alVolver }: { id: number; alVolver: () => void }) 
           {d.cuentos.length ? (
             <ul class="admin__simple">
               {d.cuentos.map((c) => (
-                <li key={c.id}>
-                  #{c.id} {c.titulo ?? 'En preparación'} · {c.estado === 'listo' ? 'listo' : `capítulo ${c.capitulos}`} · {fecha(c.creado)}
+                <li key={c.id} class="admin__cuento">
+                  <span>
+                    #{c.id} {c.prueba ? '🎁 ' : ''}{c.titulo ?? 'En preparación'} · {c.estado === 'listo' ? 'listo' : `capítulo ${c.capitulos}`} · {fecha(c.creado)}
+                  </span>
+                  <button type="button" class="boton boton--suave boton--chico" onClick={() => setConversacion(c.id)}>
+                    💬 Ver conversación
+                  </button>
                 </li>
               ))}
             </ul>

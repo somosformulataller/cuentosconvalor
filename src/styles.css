@@ -1383,6 +1383,49 @@ button {
   color: var(--tinta-2);
 }
 
+/* La conversación de un cuento, vista desde el superadmin */
+.admin__cuento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+
+.admin__conversacion {
+  margin-top: 16px;
+}
+
+.admin__conversacion .msg {
+  animation: none;
+}
+
+.admin__conversacion time {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.admin__conversacion > li:not(.msg) {
+  list-style: none;
+}
+
+.admin__capitulo {
+  margin: 0;
+}
+
+.admin__capitulo summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin__capitulo p {
+  margin: 10px 0 0;
+  line-height: 1.6;
+}
+
 @media (max-width: 560px) {
   .admin__pago {
     flex-direction: column;

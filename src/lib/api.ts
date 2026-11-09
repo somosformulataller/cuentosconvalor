@@ -91,6 +91,7 @@ export const api = {
     banco: () => pedir<{ movimientos: Movimiento[] }>('GET', '/admin/banco'),
     usuarios: () => pedir<{ usuarios: AdminUsuario[] }>('GET', '/admin/usuarios'),
     usuario: (id: number) => pedir<AdminDetalle>('GET', `/admin/usuarios/${id}`),
+    conversacion: (id: number) => pedir<{ cuento: Cuento & { creado: string }; mensajes: Mensaje[] }>('GET', `/admin/cuentos/${id}`),
   },
 }
 

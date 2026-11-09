@@ -207,7 +207,7 @@ export const rutasAdmin = [
       const [eventos, pagos, cuentos] = await Promise.all([
         q(db().from('eventos').select('id, tipo, detalle, creado').eq('usuario_id', usuario.id).order('creado', { ascending: false }).limit(300)),
         q(db().from('pagos').select('id, estado, monto_usd, monto_bs, referencia, revision, nota, origen, creado').eq('usuario_id', usuario.id).order('creado', { ascending: false })),
-        q(db().from('cuentos').select('id, titulo, para, estado, creado, actualizado, capitulos(count)').eq('usuario_id', usuario.id).order('creado', { ascending: false })),
+        q(db().from('cuentos').select('id, titulo, para, estado, prueba, creado, actualizado, capitulos(count)').eq('usuario_id', usuario.id).order('creado', { ascending: false })),
       ])
       json(res, 200, {
         usuario: { ...usuario, activo: activo(usuario), dias_restantes: diasRestantes(usuario.pagado_hasta) },
@@ -215,6 +215,18 @@ export const rutasAdmin = [
         pagos,
         cuentos: cuentos.map(({ capitulos, ...c }) => ({ ...c, capitulos: capitulos?.[0]?.count ?? 0 })),
       })
+    }),
+  ],
+
+  [
+    'GET',
+    /^\/api\/admin\/cuentos\/(\d+)$/,
+    soloAdmin(async (req, res, u, [id]) => {
+      // La conversación completa de un cuento con Luna (solo lectura)
+      const cuento = await q(db().from('cuentos').select('id, usuario_id, titulo, para, valores, estado, prueba, creado').eq('id', Number(id)).maybeSingle())
+      if (!cuento) return json(res, 404, { error: 'No existe ese cuento.' })
+      const mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
+      json(res, 200, { cuento, mensajes })
     }),
   ],
 ]

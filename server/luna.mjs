@@ -71,7 +71,7 @@ export function etapaPrueba(respuestas, capitulos) {
     return `${base} Etapa 1 de 4. Acaba de responder a tu saludo, en el que le preguntaste si comenzaban. Responde solo con <mensaje>: una frase alegre y luego pregúntale cómo se llama su hijo o hija, cuántos años tiene y qué es lo que más le gusta. Si dudó o dijo que no, cuéntale con cariño en una frase que es gratis y toma un par de minutos, y haz la pregunta igual. Todavía no escribas el cuento.`
   }
   if (respuestas === 2) {
-    return `${base} Etapa 2 de 4. Ya te contó de su hijo. Responde solo con <mensaje>: una frase cálida que muestre que lo escuchaste (menciona algo concreto) y luego pregunta cuál es el comportamiento que desea corregir en él o ella, con 3 o 4 ejemplos cortos (hacer berrinches, no querer comer, no ordenar sus juguetes, decir mentiras...). Todavía no escribas el cuento.`
+    return `${base} Etapa 2 de 4. Ya te contó de su hijo. Responde solo con <mensaje>: una frase cálida que muestre que lo escuchaste (menciona algo concreto) y luego pregunta cuál es el comportamiento que desea corregir o mejorar en él o ella. Da siempre estos ejemplos: hacer berrinches, compartir con sus amigos y dormir mejor (puedes sumar uno más, como no querer comer). Todavía no escribas el cuento.`
   }
   if (respuestas === 3) {
     return `${base} Etapa 3 de 4. Ya sabes qué comportamiento quiere corregir. Responde solo con <mensaje>: una frase cálida y comprensiva, sin juzgar al niño, y luego pregunta cuál es su personaje favorito (de una película o un dibujo animado, un animal, un superhéroe, un juguete...). Todavía no escribas el cuento.`

@@ -31,7 +31,7 @@ const SUGERENCIAS: Record<number, string[]> = {
 const PASOS_PRUEBA = ['Tu hijo', 'Comportamiento', 'Personaje', 'El cuento']
 
 const SUGERENCIAS_PRUEBA: Record<number, string[]> = {
-  2: ['Hacer berrinches', 'No querer comer', 'No ordenar sus juguetes', 'Decir mentiras', 'Pelear con sus hermanos', 'No querer dormir'],
+  2: ['Hacer berrinches', 'Compartir con sus amigos', 'Dormir mejor', 'No querer comer', 'No ordenar sus juguetes', 'Decir mentiras'],
   3: ['Un superhéroe', 'Un dinosaurio', 'Una princesa', 'Su mascota', 'Un robot', 'Un unicornio'],
 }
 
