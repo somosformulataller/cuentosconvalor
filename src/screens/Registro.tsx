@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, contarVisita } from '../lib/api'
+import { eventoFbCada24h } from '../lib/fbpixel'
 import { ir } from '../lib/router'
 import { sesion } from '../lib/sesion'
 import { Portada } from './Entrar'
@@ -20,6 +21,8 @@ export function Registro() {
     setOcupado(true)
     try {
       const { usuario } = await api.registro(nombre, email, clave)
+      // Solo cuando la cuenta quedó creada (no al tocar el botón ni si falla).
+      eventoFbCada24h('seregistrocuentos')
       ir('/', true)
       sesion.set(usuario)
     } catch (err) {
