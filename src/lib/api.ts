@@ -24,6 +24,8 @@ export interface Cuento {
   para: string | null
   valores: string | null
   estado: 'creando' | 'listo'
+  /** El cuento de prueba gratis (un solo capítulo) */
+  prueba?: boolean
   actualizado: string
   capitulos?: number
 }
@@ -174,7 +176,7 @@ export interface AdminDetalle {
 export type Evento =
   | { type: 'text'; text: string }
   | { type: 'done'; cuento: Cuento; capitulos: Capitulo[] }
-  | { type: 'error'; reason: string }
+  | { type: 'error'; reason: string; pago?: boolean }
 
 /** Manda la respuesta y va recibiendo lo que escribe Luna (NDJSON). */
 export async function responder(id: number, texto: string, alEvento: (ev: Evento) => void) {
@@ -190,7 +192,7 @@ export async function responder(id: number, texto: string, alEvento: (ev: Evento
   }
   if (!res.ok || !res.body) {
     const cuerpo = await res.json().catch(() => ({}))
-    return alEvento({ type: 'error', reason: cuerpo.error ?? 'Algo falló. Prueba otra vez.' })
+    return alEvento({ type: 'error', reason: cuerpo.error ?? 'Algo falló. Prueba otra vez.', pago: !!cuerpo.pago })
   }
   const lector = res.body.pipeThrough(new TextDecoderStream()).getReader()
   let resto = ''

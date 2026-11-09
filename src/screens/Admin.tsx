@@ -31,6 +31,8 @@ const ACTIVIDAD: Record<string, string> = {
   salir: '👋 Cerró sesión',
   abrio_app: '📱 Abrió la app',
   cuento_nuevo: '✨ Empezó un cuento',
+  prueba_empezo: '🎁 Empezó el cuento de prueba',
+  prueba_lista: '🎁 Luna escribió su cuento de prueba',
   abrio_chat: '💬 Abrió el chat de un cuento',
   abrio_libro: '📖 Abrió el libro de un cuento',
   mensaje: '✍️ Le escribió a Luna',

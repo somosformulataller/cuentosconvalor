@@ -5,6 +5,9 @@
 
 export const TOTAL_CAPITULOS = 4
 
+/** El cuento de prueba gratis: 3 capítulos cortos. */
+export const CAPITULOS_PRUEBA = 3
+
 /**
  * @typedef {{ numero: number, titulo: string, texto: string, completo: boolean }} CapituloLeido
  * @typedef {{ mensaje: string, titulo: string, para: string, valores: string,

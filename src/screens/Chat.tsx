@@ -1,6 +1,6 @@
 import { Fragment } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { leerRespuesta, TOTAL_CAPITULOS } from '../../shared/formato.js'
+import { CAPITULOS_PRUEBA, leerRespuesta, TOTAL_CAPITULOS } from '../../shared/formato.js'
 import { api, responder, type Capitulo, type Cuento, type Mensaje } from '../lib/api'
 import { abrirCuento, ir } from '../lib/router'
 import { narrar, pausarOSeguir, voz } from '../lib/narrar'
@@ -25,7 +25,17 @@ const SUGERENCIAS: Record<number, string[]> = {
   2: ['Un dragón amable', 'Su mascota', 'Un hada', 'Un robot', 'Sus abuelos', 'Un unicornio'],
 }
 
-const alFinal = (suave = true) =>
+/* El cuento de prueba gratis: «¿Comenzamos?», su hijo, el comportamiento a
+   corregir, su personaje favorito y un cuento de 3 capítulos cortos. Al final se
+   ofrece activar la membresía. */
+const PASOS_PRUEBA = ['Tu hijo', 'Comportamiento', 'Personaje', 'El cuento']
+
+const SUGERENCIAS_PRUEBA: Record<number, string[]> = {
+  2: ['Hacer berrinches', 'No querer comer', 'No ordenar sus juguetes', 'Decir mentiras', 'Pelear con sus hermanos', 'No querer dormir'],
+  3: ['Un superhéroe', 'Un dinosaurio', 'Una princesa', 'Su mascota', 'Un robot', 'Un unicornio'],
+}
+
+const alFinal =(suave = true) =>
   requestAnimationFrame(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: suave ? 'smooth' : 'instant' }))
 
 export function Chat({ id }: { id: number }) {
@@ -54,9 +64,14 @@ export function Chat({ id }: { id: number }) {
       .catch((e) => setError((e as Error).message))
   }, [id])
 
+  const [quierePagar, setQuierePagar] = useState(false)
   const respuestas = mensajes.filter((m) => m.rol === 'user').length
   const ocupado = escribiendo !== null
-  const paso = Math.min(respuestas, 3)
+  const prueba = !!cuento?.prueba
+  // En la prueba, la primera respuesta es el «¿Comenzamos?»
+  const paso = prueba ? Math.min(Math.max(respuestas - 1, 0), 3) : Math.min(respuestas, 3)
+  const pasos = prueba ? PASOS_PRUEBA : PASOS
+  const sugerencias = prueba ? SUGERENCIAS_PRUEBA[respuestas] : SUGERENCIAS[respuestas]
 
   async function enviar(texto: string) {
     texto = texto.trim()
@@ -70,6 +85,7 @@ export function Chat({ id }: { id: number }) {
     alFinal()
     let raw = ''
     let fallo = ''
+    let pidePago = false
     await responder(id, texto, (ev) => {
       if (ev.type === 'text') {
         raw += ev.text
@@ -80,8 +96,11 @@ export function Chat({ id }: { id: number }) {
         setCapitulos(ev.capitulos)
       } else {
         fallo = ev.reason
+        pidePago = !!ev.pago
       }
     })
+    // Terminó la prueba gratis: se abre la ventana de pago
+    if (pidePago) setQuierePagar(true)
     if (fallo) {
       // Lo que escribió vuelve a la caja para reintentar.
       setMensajes((l) => l.filter((m) => m.id !== mio.id))
@@ -115,12 +134,17 @@ export function Chat({ id }: { id: number }) {
   const ultimoLeido = ultimo?.rol === 'assistant' ? leerRespuesta(ultimo.texto) : null
   const trasCapitulo = !ocupado && !!ultimoLeido?.capitulo
   const listo = cuento.estado === 'listo'
+  // Sin pagar, el cuento de prueba se hace sin la ventana de pago; al terminarlo
+  // se ofrece activar la cuenta (y la ventana se puede cerrar para escucharlo)
+  const sinPago = !!s && !s.activo
+  const enPrueba = prueba && sinPago
+  const ofrecer = enPrueba && listo
 
   return (
     <>
       {/* Fuera de la cabecera: su backdrop-filter recortaría la ventana de pago */}
-      {s && <AvisoPago s={s} />}
-      {s && !s.activo && <PagoModal s={s} />}
+      {s && !enPrueba && <AvisoPago s={s} />}
+      {s && sinPago && (!prueba || quierePagar) && <PagoModal s={s} alCerrar={prueba ? () => setQuierePagar(false) : undefined} />}
 
       {/* La barra y los pasos quedan fijos arriba al bajar por el chat */}
       <div class="cabecera">
@@ -137,10 +161,10 @@ export function Chat({ id }: { id: number }) {
 
 
       <nav class="pasos" aria-label="Cómo va tu cuento">
-        {PASOS.map((p, i) => (
+        {pasos.map((p, i) => (
           <span key={p} class={`pasos__paso${i < paso || listo ? ' hecho' : ''}${i === paso && !listo ? ' ahora' : ''}`}>
             <i>{i < paso || listo ? '✓' : i + 1}</i>
-            {i === 3 && capitulos.length > 0 ? `${p} ${capitulos.length}/${TOTAL_CAPITULOS}` : p}
+            {i === 3 && capitulos.length > 0 ? `${p} ${capitulos.length}/${prueba ? CAPITULOS_PRUEBA : TOTAL_CAPITULOS}` : p}
           </span>
         ))}
       </nav>
@@ -155,11 +179,25 @@ export function Chat({ id }: { id: number }) {
             (escribiendo ? <DeLuna raw={escribiendo} cuentoId={id} capitulos={capitulos} enVivo /> : <Pensando />)}
         </ol>
 
-        {listo && !ocupado && (
+        {ofrecer && !ocupado && (
+          <section class="listo">
+            <span class="listo__brillo" aria-hidden="true">💛</span>
+            <h2>¿Te gustaría esta herramienta para compartir con tu hijo todos los días?</h2>
+            <p>Con tu cuenta activa, Luna crea cuentos nuevos de {TOTAL_CAPITULOS} capítulos, narrados con su voz, cada vez que quieras.</p>
+            <button type="button" class="boton boton--principal boton--grande" onClick={() => setQuierePagar(true)}>
+              ✨ Sí, quiero activar mi cuenta
+            </button>
+            <a href="/libro" data-cuento={id} class="boton boton--suave">📖 Leer y escuchar el cuento</a>
+          </section>
+        )}
+
+        {listo && !ocupado && !ofrecer && (
           <section class="listo">
             <span class="listo__brillo" aria-hidden="true">🌟</span>
             <h2>¡Tu cuento está listo!</h2>
-            <p>{cuento.titulo ? `«${cuento.titulo}»` : 'Ya puedes leerlo'}, con sus {TOTAL_CAPITULOS} capítulos y la voz de Luna.</p>
+            <p>
+              {cuento.titulo ? `«${cuento.titulo}»` : 'Ya puedes leerlo'}, con sus {prueba ? CAPITULOS_PRUEBA : TOTAL_CAPITULOS} capítulos y la voz de Luna.
+            </p>
             <a href="/libro" data-cuento={id} class="boton boton--principal boton--grande">📖 Leer y escuchar el cuento</a>
             <button type="button" class="boton boton--suave" onClick={nuevo}>✨ Crear otro cuento</button>
           </section>
@@ -167,10 +205,18 @@ export function Chat({ id }: { id: number }) {
 
         {error && <p class="aviso chat__aviso" role="alert">{error}</p>}
 
+        {!ofrecer && (
         <div class="chat__abajo">
-          {!ocupado && SUGERENCIAS[respuestas] && (
+          {!ocupado && prueba && respuestas === 0 && (
+            <div class="chips">
+              <button type="button" class="chip chip--fuerte" onClick={() => enviar('¡Sí, comencemos!')}>
+                ¡Sí, comencemos! ✨
+              </button>
+            </div>
+          )}
+          {!ocupado && sugerencias && (
             <div class="chips" aria-label="Ideas">
-              {SUGERENCIAS[respuestas].map((s) => (
+              {sugerencias.map((s) => (
                 <button
                   type="button"
                   key={s}
@@ -208,19 +254,23 @@ export function Chat({ id }: { id: number }) {
             setValor={setBorrador}
             ocupado={ocupado}
             placeholder={
-              respuestas === 0
-                ? 'Ej.: Se llama Sofía, tiene 5 años y ama los dinosaurios'
-                : respuestas === 1
-                  ? '¿Qué valores quieres reforzar?'
-                  : respuestas === 2
-                    ? '¿Qué personajes te gustaría?'
-                    : listo
-                      ? '¿Quieres cambiar algo del cuento?'
-                      : 'Escribe a Luna…'
+              prueba
+                ? (['Escribe «sí» para comenzar', 'Ej.: Se llama Sofía, tiene 5 años y ama los dinosaurios', '¿Qué comportamiento deseas corregir?', '¿Cuál es su personaje favorito?'][respuestas] ??
+                  (listo ? '¿Quieres cambiar algo del cuento?' : 'Escribe a Luna…'))
+                : respuestas === 0
+                  ? 'Ej.: Se llama Sofía, tiene 5 años y ama los dinosaurios'
+                  : respuestas === 1
+                    ? '¿Qué valores quieres reforzar?'
+                    : respuestas === 2
+                      ? '¿Qué personajes te gustaría?'
+                      : listo
+                        ? '¿Quieres cambiar algo del cuento?'
+                        : 'Escribe a Luna…'
             }
             alEnviar={() => enviar(borrador)}
           />
         </div>
+        )}
       </main>
     </>
   )

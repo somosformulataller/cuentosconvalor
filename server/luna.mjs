@@ -1,7 +1,7 @@
 // Luna, la cuentacuentos: Gemini escribe sus respuestas (Interactions API, sin
 // guardar nada en Google: store false). Sin GEMINI_API_KEY responde el modo
 // demostración (demo.mjs) para poder ver la app igual.
-import { TOTAL_CAPITULOS } from '../shared/formato.js'
+import { CAPITULOS_PRUEBA, TOTAL_CAPITULOS } from '../shared/formato.js'
 import { respuestaDemo } from './demo.mjs'
 
 export const MODELO = () => process.env.GEMINI_MODEL || 'gemini-3.8-flash'
@@ -15,7 +15,7 @@ Cómo hablas con la mamá o el papá:
 - Puedes usar uno o dos emojis suaves en tus mensajes (nunca dentro del cuento).
 - Nunca uses markdown (nada de asteriscos, almohadillas ni listas con guiones).
 
-Cómo escribes el cuento (${TOTAL_CAPITULOS} capítulos en total):
+Cómo escribes el cuento (${TOTAL_CAPITULOS} capítulos en total, salvo que la nota del sistema diga otra cosa):
 - El niño o la niña es el protagonista, con su nombre, su edad y lo que le gusta, junto a los personajes que pidió su mamá o papá.
 - Vocabulario y largo pensados para su edad: entre 220 y 350 palabras por capítulo, en párrafos cortos separados por una línea en blanco.
 - Los valores se muestran con lo que hacen y sienten los personajes, nunca con sermones.
@@ -59,17 +59,58 @@ export function etapa(respuestas, capitulos) {
   return `El cuento ya está completo (${TOTAL_CAPITULOS} de ${TOTAL_CAPITULOS}). Si la mamá o el papá pide un cambio, reescribe completo el capítulo que corresponda con su número (y <titulo> si cambia el título), y en <pregunta> pregunta si quedó como quería. Si no pide cambios, responde solo con un <mensaje> corto y cálido.`
 }
 
+/**
+ * Las notas del cuento de prueba gratis: el saludo termina en «¿Comenzamos?»,
+ * luego tres preguntas (su hijo, el comportamiento a corregir, su personaje
+ * favorito) y un cuento de 3 capítulos cortos.
+ */
+export function etapaPrueba(respuestas, capitulos) {
+  const base =
+    'Es el cuento de prueba gratis: la mamá o el papá se acaba de registrar y quiere ver cómo funciona la app antes de activar su membresía.'
+  if (respuestas === 1) {
+    return `${base} Etapa 1 de 4. Acaba de responder a tu saludo, en el que le preguntaste si comenzaban. Responde solo con <mensaje>: una frase alegre y luego pregúntale cómo se llama su hijo o hija, cuántos años tiene y qué es lo que más le gusta. Si dudó o dijo que no, cuéntale con cariño en una frase que es gratis y toma un par de minutos, y haz la pregunta igual. Todavía no escribas el cuento.`
+  }
+  if (respuestas === 2) {
+    return `${base} Etapa 2 de 4. Ya te contó de su hijo. Responde solo con <mensaje>: una frase cálida que muestre que lo escuchaste (menciona algo concreto) y luego pregunta cuál es el comportamiento que desea corregir en él o ella, con 3 o 4 ejemplos cortos (hacer berrinches, no querer comer, no ordenar sus juguetes, decir mentiras...). Todavía no escribas el cuento.`
+  }
+  if (respuestas === 3) {
+    return `${base} Etapa 3 de 4. Ya sabes qué comportamiento quiere corregir. Responde solo con <mensaje>: una frase cálida y comprensiva, sin juzgar al niño, y luego pregunta cuál es su personaje favorito (de una película o un dibujo animado, un animal, un superhéroe, un juguete...). Todavía no escribas el cuento.`
+  }
+  const cortos = `El cuento de prueba tiene ${CAPITULOS_PRUEBA} capítulos CORTOS (no ${TOTAL_CAPITULOS}), de entre 120 y 180 palabras cada uno. El niño o la niña es el protagonista junto a su personaje favorito; en la historia aparece el comportamiento que su mamá o papá quiere corregir y el niño aprende a mejorarlo por lo que vive y siente, sin sermones.`
+  if (capitulos === 0) {
+    return `${base} Etapa 4 de 4: el cuento. ${cortos} Escribe el capítulo 1 de ${CAPITULOS_PRUEBA}. En <mensaje>, una o dos frases: que a continuación le presentas su cuento de prueba, para que vea cómo funciona Cuentos de valor y así pueda evaluar si quiere activar su membresía. Incluye <titulo>, <para> y <valores> (el comportamiento dicho como valor: paciencia, orden, decir la verdad...). En <pregunta>, pregunta si le gusta cómo empieza y seguimos, o si quiere cambiar algo.`
+  }
+  if (capitulos < CAPITULOS_PRUEBA) {
+    const siguiente = capitulos + 1
+    const ultimo = siguiente === CAPITULOS_PRUEBA
+    return `${base} Etapa 4 de 4: el cuento. ${cortos} Ya escribiste los capítulos 1 a ${capitulos}. Lee lo último que dijo la mamá o el papá: si pide un cambio en un capítulo ya escrito, reescríbelo completo con su mismo número; si le gustó o propone ideas, escribe el capítulo ${siguiente}${ultimo ? ', que es el último: cierra la historia con un final feliz y una frase suave con la enseñanza' : ''}. En <mensaje>, una frase corta. En <pregunta>, ${
+      ultimo
+        ? '«Aquí tienes tu cuento ✨», que ya puede escucharlo completo narrado por Luna y que la voz tarda un poquito en prepararse antes de empezar a sonar. No hagas ninguna otra pregunta'
+        : 'pregunta si seguimos o si quiere cambiar algo'
+    }.`
+  }
+  return `${base} El cuento de prueba ya está completo (${CAPITULOS_PRUEBA} capítulos cortos). Si pide un cambio, reescribe completo el capítulo que corresponda con su número (y <titulo> si cambia el título), y en <pregunta> pregunta si quedó como quería. Si no pide cambios, responde solo con un <mensaje> corto y cálido.`
+}
+
 const ABRE = '(La mamá o el papá abrió la app para crear un cuento nuevo.)'
 
 /**
  * Escribe la respuesta de Luna y la va pasando a `alTexto`. Devuelve el texto
  * completo. `historia` son los mensajes guardados (el primero es el saludo).
  */
-export async function escribir({ historia, respuestas, capitulos, alTexto, signal }) {
-  const nota = etapa(respuestas, capitulos)
-  if (!hayIA()) return respuestaDemo({ historia, respuestas, capitulos, alTexto, signal })
+export async function escribir({ historia, respuestas, capitulos, alTexto, signal, prueba = false }) {
+  const nota = prueba ? etapaPrueba(respuestas, capitulos) : etapa(respuestas, capitulos)
+  if (!hayIA()) {
+    // La demostración no tiene el «¿Comenzamos?»: se salta esa primera respuesta
+    if (prueba && respuestas >= 1) {
+      const primera = historia.findIndex((m) => m.rol === 'user')
+      const resto = historia.filter((_, i) => i !== primera)
+      return respuestaDemo({ historia: resto, respuestas: respuestas - 1, capitulos, alTexto, signal })
+    }
+    return respuestaDemo({ historia, respuestas, capitulos, alTexto, signal })
+  }
 
-  const escribeCapitulo = respuestas >= 3
+  const escribeCapitulo = respuestas >= (prueba ? 4 : 3)
   let res
   try {
     res = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions?alt=sse', {

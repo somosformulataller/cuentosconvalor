@@ -11,13 +11,33 @@ import { cuerpo, json } from './http.mjs'
 import { rutasAdmin } from './rutas-admin.mjs'
 import { rutasPagos } from './rutas-pagos.mjs'
 import { activo, pagoRechazado } from './suscripcion.mjs'
-import { leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
+import { CAPITULOS_PRUEBA, leerRespuesta, TOTAL_CAPITULOS } from '../shared/formato.js'
 
 /** Sin mensualidad al día no se crean ni se escriben cuentos (leer y escuchar, sí). */
 const SIN_PAGO = { error: 'Activa tu cuenta con el pago de la mensualidad para seguir creando cuentos.', pago: true }
 
 const saludo = (nombre) =>
   `<mensaje>¡Hola, ${nombre}! 🌙 Soy Luna, y vamos a crear juntos un cuento con valor, hecho a la medida de tu hijo o hija.\n\nPara empezar, cuéntame de tu hijo: ¿cómo se llama, cuántos años tiene y qué es lo que más le gusta?</mensaje>`
+
+/** El saludo del cuento de prueba gratis (texto acordado con la usuaria). */
+const saludoPrueba = () =>
+  `<mensaje>Hola, soy Luna 🌙 Vamos a crear un cuento personalizado para tu hijo en este momento.\n\nAsí conocerás los beneficios que tendrás si decides comenzar a usarlo diariamente.\n\n¿Comenzamos?</mensaje>`
+
+/** Respuestas como máximo en el cuento de prueba (para que no se vuelva un chat gratis). */
+const MAX_RESPUESTAS_PRUEBA = 10
+
+/** ¿Le toca el cuento de prueba? Solo a quien nunca ha pagado (y no es superadmin). */
+const sinPagarNunca = (u) => !!u && !u.es_admin && !u.pagado_hasta && !activo(u)
+
+const pruebaDe = (u) =>
+  q(db().from('cuentos').select('id, estado').eq('usuario_id', u.id).eq('prueba', true).maybeSingle())
+
+/** Convierte un cuento sin empezar (solo el saludo) en el de prueba. */
+async function volverPrueba(cuentoId) {
+  await q(db().from('cuentos').update({ prueba: true }).eq('id', cuentoId))
+  await q(db().from('mensajes').delete().eq('cuento_id', cuentoId))
+  await q(db().from('mensajes').insert({ cuento_id: cuentoId, rol: 'assistant', texto: saludoPrueba() }))
+}
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -109,7 +129,7 @@ const rutas = [
       const filas = await q(
         db()
           .from('cuentos')
-          .select('id, titulo, para, valores, estado, actualizado, capitulos(count)')
+          .select('id, titulo, para, valores, estado, prueba, actualizado, capitulos(count)')
           .eq('usuario_id', u.id)
           .order('actualizado', { ascending: false }),
       )
@@ -122,9 +142,14 @@ const rutas = [
     'POST',
     /^\/api\/cuentos$/,
     async (req, res, u) => {
+      // Quien nunca ha pagado empieza por el cuento de prueba gratis (uno solo).
+      const prueba = sinPagarNunca(u) ? await pruebaDe(u) : null
+      if (prueba?.estado === 'creando') return json(res, 200, { id: prueba.id })
+      const tocaPrueba = sinPagarNunca(u) && !prueba
+
       // Si el último cuento sigue sin empezar (solo el saludo), se reutiliza.
       const ultimo = await q(
-        db().from('cuentos').select('id').eq('usuario_id', u.id).order('id', { ascending: false }).limit(1).maybeSingle(),
+        db().from('cuentos').select('id, prueba').eq('usuario_id', u.id).order('id', { ascending: false }).limit(1).maybeSingle(),
       )
       if (ultimo) {
         const { count } = await db()
@@ -132,10 +157,14 @@ const rutas = [
           .select('id', { count: 'exact', head: true })
           .eq('cuento_id', ultimo.id)
           .eq('rol', 'user')
-        if (count === 0) return json(res, 200, { id: ultimo.id })
+        if (count === 0) {
+          if (tocaPrueba) await volverPrueba(ultimo.id)
+          return json(res, 200, { id: ultimo.id })
+        }
       }
-      const nuevo = await q(db().from('cuentos').insert({ usuario_id: u.id }).select('id').single())
-      await q(db().from('mensajes').insert({ cuento_id: nuevo.id, rol: 'assistant', texto: saludo(u.nombre.split(' ')[0]) }))
+      const nuevo = await q(db().from('cuentos').insert({ usuario_id: u.id, prueba: tocaPrueba }).select('id').single())
+      const texto = tocaPrueba ? saludoPrueba() : saludo(u.nombre.split(' ')[0])
+      await q(db().from('mensajes').insert({ cuento_id: nuevo.id, rol: 'assistant', texto }))
       json(res, 200, { id: nuevo.id })
     },
   ],
@@ -146,10 +175,17 @@ const rutas = [
     async (req, res, u, [id]) => {
       const cuento = await cuentoDe(u, id)
       if (!cuento) return json(res, 404, { error: 'No encontramos ese cuento.' })
-      const mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
+      let mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
+      // Quien se registró antes de existir la prueba y nunca pagó: su cuento sin
+      // empezar pasa a ser el de prueba
+      if (!cuento.prueba && sinPagarNunca(u) && !mensajes.some((m) => m.rol === 'user') && !(await pruebaDe(u))) {
+        await volverPrueba(cuento.id)
+        cuento.prueba = true
+        mensajes = await q(db().from('mensajes').select('id, rol, texto, creado').eq('cuento_id', cuento.id).order('id'))
+      }
       const vista = new URL(req.url, 'http://x').searchParams.get('vista')
       // «Abrió el chat» solo cuenta con el pago activo (sin pagar no puede escribirle a Luna)
-      if (vista === 'libro' || activo(u)) waitUntil(evento(u.id, vista === 'libro' ? 'abrio_libro' : 'abrio_chat', { cuento: cuento.id }))
+      if (vista === 'libro' || activo(u) || cuento.prueba) waitUntil(evento(u.id, vista === 'libro' ? 'abrio_libro' : 'abrio_chat', { cuento: cuento.id }))
       json(res, 200, { cuento, mensajes, capitulos: await capitulosDe(cuento.id) })
     },
   ],
@@ -197,9 +233,18 @@ const rutas = [
 
 /** La mamá o el papá responde: Luna escribe en vivo (NDJSON) y se guarda. */
 async function conversar(req, res, u, [id]) {
-  if (!activo(u)) return json(res, 402, SIN_PAGO)
   const cuento = await cuentoDe(u, id)
   if (!cuento) return json(res, 404, { error: 'No encontramos ese cuento.' })
+  // Sin mensualidad solo se puede escribir en el cuento de prueba, hasta que esté listo
+  if (!activo(u)) {
+    if (!cuento.prueba || cuento.estado === 'listo') return json(res, 402, SIN_PAGO)
+    const { count } = await db()
+      .from('mensajes')
+      .select('id', { count: 'exact', head: true })
+      .eq('cuento_id', cuento.id)
+      .eq('rol', 'user')
+    if (count >= MAX_RESPUESTAS_PRUEBA) return json(res, 402, SIN_PAGO)
+  }
   const { texto = '' } = await cuerpo(req)
   if (!texto.trim()) return json(res, 400, { error: 'Escribe tu respuesta.' })
   if (texto.length > 4000) return json(res, 400, { error: 'Es un poco largo. Cuéntamelo en menos palabras.' })
@@ -210,7 +255,7 @@ async function conversar(req, res, u, [id]) {
   const capitulos = (await capitulosDe(cuento.id)).length
   // «Empezó un cuento» cuenta desde su primera respuesta a Luna (ya con el pago activo),
   // no cuando la app abre el chat vacío con el saludo
-  if (respuestas === 1) waitUntil(evento(u.id, 'cuento_nuevo', { cuento: cuento.id }))
+  if (respuestas === 1) waitUntil(evento(u.id, cuento.prueba ? 'prueba_empezo' : 'cuento_nuevo', { cuento: cuento.id }))
   waitUntil(evento(u.id, 'mensaje', { cuento: cuento.id, respuesta: respuestas }))
 
   res.statusCode = 200
@@ -221,9 +266,20 @@ async function conversar(req, res, u, [id]) {
   res.on('close', () => !res.writableEnded && corte.abort())
 
   try {
-    const raw = await escribir({ historia, respuestas, capitulos, alTexto: (t) => enviar({ type: 'text', text: t }), signal: corte.signal })
+    const raw = await escribir({
+      historia,
+      respuestas,
+      capitulos,
+      prueba: !!cuento.prueba,
+      alTexto: (t) => enviar({ type: 'text', text: t }),
+      signal: corte.signal,
+    })
     const cap = await guardar(cuento, raw)
-    if (cap) await evento(u.id, cap.version > 1 ? 'capitulo_reescrito' : 'capitulo', { cuento: cuento.id, capitulo: cap.numero })
+    if (cap) {
+      const listaPrueba = cuento.prueba && cap.version === 1 && cap.numero === CAPITULOS_PRUEBA
+      const tipo = cap.version > 1 ? 'capitulo_reescrito' : listaPrueba ? 'prueba_lista' : 'capitulo'
+      await evento(u.id, tipo, { cuento: cuento.id, capitulo: cap.numero })
+    }
     const actualizado = await q(db().from('cuentos').select('*').eq('id', cuento.id).single())
     enviar({ type: 'done', cuento: actualizado, capitulos: await capitulosDe(cuento.id) })
   } catch (err) {
@@ -245,14 +301,16 @@ async function guardar(cuento, raw) {
   if (r.para) cambios.para = r.para
   if (r.valores) cambios.valores = r.valores
   const c = r.capitulo
-  if (c && c.texto && c.numero >= 1 && c.numero <= TOTAL_CAPITULOS) {
+  // El cuento de prueba tiene 3 capítulos cortos
+  const total = cuento.prueba ? CAPITULOS_PRUEBA : TOTAL_CAPITULOS
+  if (c && c.texto && c.numero >= 1 && c.numero <= total) {
     cap = await q(
       db()
         .rpc('guardar_capitulo', { p_cuento: cuento.id, p_numero: c.numero, p_titulo: c.titulo || `Capítulo ${c.numero}`, p_texto: c.texto })
         .single(),
     )
     const { count } = await db().from('capitulos').select('numero', { count: 'exact', head: true }).eq('cuento_id', cuento.id)
-    if (count >= TOTAL_CAPITULOS) cambios.estado = 'listo'
+    if (count >= total) cambios.estado = 'listo'
     // Con voz, el audio se va preparando mientras siguen conversando
     // (waitUntil deja a Vercel terminarlo después de responder).
     if (hayVoz()) waitUntil(audioDe(cuento.id, cap).catch((err) => console.error('[voz]', err)))

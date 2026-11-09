@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { TOTAL_CAPITULOS } from '../../shared/formato.js'
+import { CAPITULOS_PRUEBA, TOTAL_CAPITULOS } from '../../shared/formato.js'
 import { api, type Cuento } from '../lib/api'
 import { abrirCuento, ir } from '../lib/router'
 import { sesion } from '../lib/sesion'
@@ -58,7 +58,8 @@ export function Cuentos() {
                     <strong>{c.titulo ?? 'Cuento en preparación'}</strong>
                     <small>
                       {c.para ? `Para ${c.para} · ` : ''}
-                      {c.estado === 'listo' ? 'Listo para leer y escuchar' : `Capítulo ${c.capitulos ?? 0} de ${TOTAL_CAPITULOS}`}
+                      {c.prueba ? 'Cuento de prueba · ' : ''}
+                      {c.estado === 'listo' ? 'Listo para leer y escuchar' : `Capítulo ${c.capitulos ?? 0} de ${c.prueba ? CAPITULOS_PRUEBA : TOTAL_CAPITULOS}`}
                     </small>
                   </span>
                 </a>
