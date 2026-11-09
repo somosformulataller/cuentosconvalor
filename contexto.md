@@ -1,6 +1,6 @@
 # Contexto de Cuentos de valor
 
-Todo lo que hace falta para retomar la PWA. Actualizado el 04-11-2026 (noche).
+Todo lo que hace falta para retomar la PWA. Actualizado el 09-11-2026.
 Para arrancarla y ver cómo está armado el código, ver `README.md`.
 
 ## Qué es
@@ -120,11 +120,63 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   (`/cuento/13`, `/cuento/13/libro`) se limpian solas. Al cerrar sesión se olvida
   el cuento. Ya no hay enlace para compartir un cuento concreto.
 
+## Cambios del 05 y 06-11-2026, todos en producción
+
+- **El superadmin solo gestiona:** no crea ni abre cuentos (pantalla, menú y
+  API devuelven 403); al entrar va directo a `/admin`.
+- **Pago rechazado:** aviso fijo con soporte por WhatsApp y sin cuentos hasta
+  que se apruebe (`PagoRechazado`, la app revisa cada 30 s). El superadmin
+  puede aprobar un pago que había rechazado.
+- **Eventos más fieles:** «Empezó un cuento» (`cuento_nuevo`) cuenta desde la
+  primera respuesta a Luna, no al abrir el chat vacío; «Abrió el chat» solo
+  con el pago activo.
+- Botón **«Cerrar sesión»** en la ventana de pago y en los avisos de soporte.
+- **Pestaña Embudo** en el superadmin (migración `20261105010000_embudo`, tabla
+  `visitas` y función `embudo()`): visitas a `/inicio` y a `/registro` (una vez
+  por navegador), registros, capturas, pagos y días de uso desde que pagó.
+- `pagoUnCuento` del pixel solo cuando el servidor guardó el pago (ver arriba).
+
+## Cambios del 09-11-2026, todos en producción
+
+- **Evento de Meta `seregistrocuentos`** (611a0d0) al crear la cuenta en
+  `/registro`, solo si el servidor la creó (no al tocar el botón ni si el
+  correo ya existe); una vez cada 24 h por navegador, como `pagoUnCuento`.
+  Probado con Chrome automático en producción: Meta respondió 200.
+- **Cuento de prueba gratis** (4482177, migración
+  `20261109000000_cuento_prueba`: columna `cuentos.prueba` y un solo cuento de
+  prueba por usuario). Lo recibe quien **nunca ha pagado** (`pagado_hasta`
+  vacío), también los registrados antes. Todo es en el chat con Luna:
+  1. Saludo acordado: «Hola, soy Luna 🌙 Vamos a crear un cuento personalizado
+     para tu hijo en este momento. Así conocerás los beneficios que tendrás si
+     decides comenzar a usarlo diariamente. ¿Comenzamos?», con el botón
+     «¡Sí, comencemos! ✨».
+  2. Su hijo (nombre, edad, qué le gusta) → el **comportamiento** que desea
+     corregir → su **personaje favorito** (pasos de arriba: Tu hijo,
+     Comportamiento, Personaje, El cuento).
+  3. Luna dice que es un cuento de prueba para evaluar si activa la membresía
+     y lo escribe en **3 capítulos cortos** (120–180 palabras, `CAPITULOS_PRUEBA`
+     en `shared/formato.js`), uno por uno con «¡Me encanta, sigue!». Al final:
+     «Aquí tienes tu cuento ✨» y que la voz tarda un poquito en prepararse.
+  4. Sale «¿Te gustaría esta herramienta para compartir con tu hijo todos los
+     días?» con «Sí, quiero activar mi cuenta» → ventana de pago (en la prueba
+     se puede cerrar para escuchar el cuento). La caja de texto desaparece.
+  - Durante la prueba no salen la ventana de pago ni la franja «Activa tu
+    cuenta». Máximo 10 respuestas (`MAX_RESPUESTAS_PRUEBA`); después, o al
+    crear otro cuento, se pide el pago como siempre.
+  - Las notas de Luna están en `etapaPrueba()` (`server/luna.mjs`); la lógica
+    en `server/api.mjs` (`sinPagarNunca`, `volverPrueba`).
+  - Eventos nuevos en el superadmin: `prueba_empezo` y `prueba_lista`.
+  - Costo: ~US$0,10 por prueba (texto + voz de 3 capítulos cortos).
+  - Probado de punta a punta en local con Gemini real; la cuenta desechable se
+    borró después (usuario, cuento y audios).
+- Se probó un aviso fijo «Estoy preparando el audio…» después de cada
+  capítulo y **se descartó**: el botón ya dice «⏳ Preparando la voz…».
+
 ## Estado actual
 
-- Código en github.com/somosformulataller/cuentosconvalor (rama `main`). El
-  04-11 se subió el paso a Supabase + Vercel y a Gemini Flash; Supabase aplica
-  las migraciones al subir.
+- Código en github.com/somosformulataller/cuentosconvalor (rama `main`, push
+  solo con la cuenta somosformulataller). El 04-11 se subió el paso a
+  Supabase + Vercel y a Gemini Flash.
 - Probado el 04-11: Luna con Gemini Flash hace las preguntas (3–4 s) y escribe el
   capítulo 1 (23 s, 286 palabras, formato correcto). La voz de Gemini narró una
   prueba corta y la conversión a MP3 funciona (1,1 MB → 184 KB).
@@ -133,7 +185,9 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   variables cargadas en Vercel (las claves como Sensitive). Probado ahí: entrar,
   chat en vivo, capítulo 1 en 17 s y su audio MP3.
 - **Migraciones:** la integración de Supabase con GitHub no quedó conectada; las
-  migraciones las corre la usuaria en el SQL Editor (las 4 del 04-11 ya corridas).
+  migraciones las corre la usuaria en el SQL Editor, **antes** de subir el
+  código que las usa. Todas corridas hasta `20261109000000_cuento_prueba`
+  (comprobado el 09-11).
 - Usuario de prueba: `prueba@cuentosdevalor.app` (la clave la tiene la usuaria).
 - El `.env` local usa por ahora la clave de Gemini de Formula Taller (el gasto se
   carga a ese proyecto de Google).
@@ -160,4 +214,9 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
 - Al cambiar algo en `server/` o `shared/` hay que reiniciar `npm run dev`.
 - Luna sabe en qué etapa va por una nota del sistema que arma `etapa()` en
   `server/luna.mjs`; va pegada a las instrucciones fijas (`system_instruction`).
-- En local se usa la misma base de Supabase que en producción.
+- En local se usa la misma base de Supabase que en producción: las cuentas
+  desechables de prueba se borran después (sus audios con `borrarAudios()` de
+  `server/voz.mjs`, luego `eventos` y el usuario; lo demás cae en cascada).
+- Para probar el pixel o la app sin ensuciar datos: Chrome automático
+  (puppeteer-core con el Chrome instalado) con *user agent* normal, y
+  respondiendo `/api/registro` y `/api/visita` desde la prueba.
