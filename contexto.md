@@ -169,6 +169,14 @@ cambio, y Luna lo reescribe. Al final el cuento se lee en «el libro» y se
   - Costo: ~US$0,10 por prueba (texto + voz de 3 capítulos cortos).
   - Probado de punta a punta en local con Gemini real; la cuenta desechable se
     borró después (usuario, cuento y audios).
+- En la prueba, Luna da siempre como ejemplos del comportamiento: **hacer
+  berrinches, compartir con sus amigos y dormir mejor** (a veces suma uno
+  más); los botones de ideas empiezan por esos tres (335ae24).
+- **Superadmin → Usuarios → un usuario → «💬 Ver conversación»** en cada
+  cuento (🎁 = de prueba): el chat completo con Luna, solo lectura, con fecha
+  y hora de cada mensaje; los capítulos salen plegados con su número de
+  palabras. Ruta `GET /api/admin/cuentos/:id` (solo `es_admin`), componente
+  `Conversacion` en `Admin.tsx` (335ae24).
 - Se probó un aviso fijo «Estoy preparando el audio…» después de cada
   capítulo y **se descartó**: el botón ya dice «⏳ Preparando la voz…».
 
